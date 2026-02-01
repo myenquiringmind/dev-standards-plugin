@@ -4,8 +4,6 @@
  * Tests session logging and debug output
  */
 
-const fs = require('fs');
-const path = require('path');
 const os = require('os');
 
 let passed = 0;

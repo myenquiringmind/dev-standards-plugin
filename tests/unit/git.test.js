@@ -30,9 +30,9 @@ const git = require('../../lib/git');
 // ============================================
 console.log('\n\x1b[1mProtected Branch Detection\x1b[0m');
 
-// Only test branches that are actually in config
-const protectedBranches = ['main', 'master', 'production'];
-const safeBranches = ['feature/test', 'fix/bug', 'dev', 'develop', 'staging', 'prod', 'release'];
+// Only test branches that are actually in config (Phase 11 added develop, staging, release)
+const protectedBranches = ['main', 'master', 'production', 'develop', 'staging', 'release'];
+const safeBranches = ['feature/test', 'fix/bug', 'dev', 'prod', 'hotfix/urgent', 'chore/cleanup'];
 
 for (const branch of protectedBranches) {
   test(`${branch} is protected`, () => {

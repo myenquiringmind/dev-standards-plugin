@@ -173,7 +173,13 @@ test('isProtectedBranch identifies protected branches', () => {
 test('isProtectedBranch allows feature branches', () => {
   assert(!utils.isProtectedBranch('feature/new-feature'), 'feature branch should not be protected');
   assert(!utils.isProtectedBranch('fix/bug-123'), 'fix branch should not be protected');
-  assert(!utils.isProtectedBranch('develop'), 'develop should not be protected');
+  assert(!utils.isProtectedBranch('hotfix/urgent'), 'hotfix branch should not be protected');
+});
+
+test('isProtectedBranch protects develop/staging/release (Phase 11)', () => {
+  assert(utils.isProtectedBranch('develop'), 'develop should be protected (Phase 11)');
+  assert(utils.isProtectedBranch('staging'), 'staging should be protected (Phase 11)');
+  assert(utils.isProtectedBranch('release'), 'release should be protected (Phase 11)');
 });
 
 // ============================================

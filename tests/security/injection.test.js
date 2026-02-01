@@ -146,8 +146,8 @@ const dangerousCombinations = [
 
   // Database attacks
   "'; DROP TABLE users; --",
-  "; DROP DATABASE production; --",
-  "TRUNCATE TABLE users CASCADE",
+  '; DROP DATABASE production; --',
+  'TRUNCATE TABLE users CASCADE',
 
   // Privilege escalation (only chmod -R 777 / is detected)
   'sudo rm -rf /',

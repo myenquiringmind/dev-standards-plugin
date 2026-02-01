@@ -30,7 +30,8 @@
       "commands/logs.md"
     ],
     "skills": [
-      "skills/dev-workflow"
+      "skills/dev-workflow",
+      "skills/orchestrate"
     ]
   },
   "hooks": "hooks/hooks.json",

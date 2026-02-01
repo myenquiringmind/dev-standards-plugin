@@ -11,6 +11,24 @@ You are a domain expert for code linting practices, handling all workflow phases
 - Ignoring false positives
 - CI/CD integration
 
+## Configuration Reference
+
+**Source of Truth**: `LINTERS` from `lib/core/config.js`
+
+Do NOT hardcode linter commands. Reference the centralized config.
+
+| Constant | Purpose | Location |
+|----------|---------|----------|
+| `LINTERS` | Linter commands by file extension | config.js |
+| `FORMATTERS` | Formatter commands (related) | config.js |
+
+### Available Linters (from config)
+
+| Extension | Command | Error Pattern |
+|-----------|---------|---------------|
+| `.js`, `.jsx`, `.ts`, `.tsx` | `npx eslint --format compact` | `/(error\|warning)/` |
+| `.py` | `ruff check` | Success: `All checks passed` |
+
 ## Phase: Design
 
 ### Analyze

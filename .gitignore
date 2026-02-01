@@ -5,13 +5,19 @@
 .DS_Store
 Thumbs.db
 desktop.ini
+*.swp
+*~
+.nul
+nul
 
 # Editor files
-*.swp
 *.swo
 .idea/
 .vscode/
 *.sublime-*
+.project
+.classpath
+.settings/
 
 # Logs
 *.log
@@ -48,3 +54,29 @@ tmp/
 
 # Version cache
 .claude-plugin-version-cache.json
+
+# Secrets and credentials (CRITICAL - never commit these)
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.p12
+credentials.json
+secrets.json
+.secrets/
+
+# Cache files
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+
+# Temporary files
+temp/
+.tmp/
+*.tmp
+
+# Orchestrator state (local only)
+tmp/.orchestrator-state.json

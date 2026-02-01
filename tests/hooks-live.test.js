@@ -4,7 +4,6 @@
  * Tests each hook's Node.js command to verify it works correctly
  */
 
-const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -33,7 +32,7 @@ function assert(condition, message) {
 console.log('\n\x1b[1mDangerous Command Blocking\x1b[0m');
 
 function testDangerousCommand(cmd, shouldBlock) {
-  const input = JSON.stringify({ tool_input: { command: cmd } });
+  // Note: input would be used if testing via actual hook-runner, but we test regex directly
   const dangerous = [
     /rm\s+-rf\s+\/(?!tmp)/,
     /rm\s+-rf\s+~/,

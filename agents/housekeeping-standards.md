@@ -207,46 +207,40 @@ When this agent identifies issues, apply these specific fixes:
 
 ### Root File Policy
 
-**Whitelist (Allowed)**:
-- Package managers: `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`
-- Git: `.gitignore`, `.gitattributes`
-- Documentation: `LICENSE`, `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`
-- Linting: `.eslintrc.json`, `.prettierrc`, `commitlint.config.js`
-- TypeScript: `tsconfig.json`, `jsconfig.json`
-- Python: `pyproject.toml`, `setup.py`, `requirements.txt`
-- Environment: `.env.example`, `.nvmrc`, `.node-version`
-- Build: `Makefile`, `Dockerfile`, `docker-compose.yml`
-- Claude: `.claudeignore`, `CLAUDE.md`
+**Configuration Reference**: `lib/core/config.js`
 
-**Blacklist (Remove)**:
-- `.nul`, `.tmp`, `.bak`, `.swp`, `~*`
-- `Thumbs.db`, `.DS_Store`, `desktop.ini`
-- `npm-debug.log`, `yarn-error.log`
-- `.cache`, `.parcel-cache`, `.eslintcache`
+Do NOT duplicate patterns inline. Always reference the centralized config constants.
 
-### System Temp Patterns to Detect
+| Constant | Purpose | Location |
+|----------|---------|----------|
+| `ROOT_WHITELIST` | Files allowed in root | config.js |
+| `ROOT_BLACKLIST` | Junk file patterns to remove | config.js |
+| `ROOT_DIRECTORIES` | Directories allowed in root | config.js |
+| `SYSTEM_TEMP_PATTERNS` | System temp usage to block | config.js |
+| `LOCAL_TEMP_ALLOWED` | Allowed local temp patterns | config.js |
 
-```javascript
-// Node.js patterns to block
-os.tmpdir()
-os.temp
-process.env.TMPDIR
-process.env.TMP
-process.env.TEMP
-'/tmp/'
-'/var/tmp/'
+### Audit Process
 
-// Python patterns to block
-tempfile.gettempdir()
-tempfile.mktemp()
-tempfile.NamedTemporaryFile()  // unless dir= is local
+1. Load `config.ROOT_WHITELIST` for allowed files
+2. Load `config.ROOT_BLACKLIST` for blocked patterns (RegExp[])
+3. Load `config.ROOT_DIRECTORIES` for allowed directories
+4. Scan root directory
+5. For each file/directory:
+   - If in `ROOT_WHITELIST` or `ROOT_DIRECTORIES` → Allowed
+   - If matches any `ROOT_BLACKLIST` pattern → Junk (remove)
+   - Otherwise → Unknown (ask user)
 
-// Windows patterns to block
-%TEMP%
-%TMP%
-\\Temp\\
-\\Local\\Temp
-```
+### System Temp Detection
+
+**Reference**: `SYSTEM_TEMP_PATTERNS` from config.js
+
+The config contains RegExp patterns to detect and block:
+- Node.js: `os.tmpdir()`, `process.env.TEMP`, etc.
+- Python: `tempfile.gettempdir()`, `tempfile.mktemp()`
+- Unix paths: `/tmp/`, `/var/tmp/`
+- Windows paths: `%TEMP%`, `\\Temp\\`
+
+**Allowed**: Patterns matching `LOCAL_TEMP_ALLOWED` (e.g., `./tmp/`, `path.join(..., 'tmp')`)
 
 ## Handoff Protocol
 

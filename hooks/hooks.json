@@ -43,11 +43,22 @@
       "hooks": [
         {
           "type": "command",
-          "command": "node -e \"const{execSync}=require('child_process');try{const branch=execSync('git branch --show-current 2>&1',{encoding:'utf8',timeout:3000}).trim();const protected=['main','master','production'];if(protected.includes(branch)){console.log(JSON.stringify({decision:'block',reason:'Cannot edit directly on protected branch ('+branch+'). Create a feature branch first: git checkout -b feature/your-feature'}));process.exit(0)}}catch(e){}let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(d))\"",
+          "command": "node -e \"const{execSync}=require('child_process');try{const branch=execSync('git branch --show-current 2>&1',{encoding:'utf8',timeout:3000}).trim();const protected=['main','master','production','develop','staging','release'];if(protected.includes(branch)){console.log(JSON.stringify({decision:'block',reason:'Cannot edit directly on protected branch ('+branch+'). Create a feature branch first: git checkout -b feature/your-feature'}));process.exit(0)}}catch(e){}let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(d))\"",
           "timeout": 5
         }
       ],
       "description": "Block direct edits to protected branches"
+    },
+    {
+      "matcher": "Edit|Write|MultiEdit",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node -e \"const fs=require('fs');const path=require('path');const stateFile=path.join(process.cwd(),'tmp','.orchestrator-state.json');try{if(fs.existsSync(stateFile)){const data=fs.readFileSync(stateFile,'utf8');const state=JSON.parse(data);if(state.orchestrator&&state.orchestrator.checkpointStatus==='pending'){console.log(JSON.stringify({decision:'block',reason:'Orchestrator checkpoint pending for '+state.orchestrator.currentPhase+' phase. Please approve or reject before making changes: node lib/orchestrator/cli.js checkpoint approve'}));process.exit(0)}}}catch(e){}let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(d))\"",
+          "timeout": 5
+        }
+      ],
+      "description": "Block edits when orchestrator checkpoint is pending"
     },
     {
       "matcher": "Bash",

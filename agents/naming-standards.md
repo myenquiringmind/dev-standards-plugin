@@ -13,10 +13,27 @@ You are a domain expert for naming conventions, handling all workflow phases.
 
 ## Language Conventions
 
+**Configuration Reference**: `lib/core/config.js`
+
+Do NOT duplicate patterns inline. Always reference the centralized config constants.
+
+| Constant | Purpose | Location |
+|----------|---------|----------|
+| `NAMING_CONVENTIONS` | Patterns by language (files, functions, classes, constants, tests) | config.js |
+| `LANGUAGE_EXTENSIONS` | File extensions by language | config.js |
+
+### Summary (from config)
+
 | Language | Files | Functions/Vars | Classes | Constants | Tests |
 |----------|-------|----------------|---------|-----------|-------|
 | **JavaScript/Node** | `kebab-case.js` | `camelCase` | `PascalCase` | `SCREAMING_SNAKE` | `*.test.js` |
 | **Python** | `snake_case.py` | `snake_case` | `PascalCase` | `SCREAMING_SNAKE` | `test_*.py` |
+
+### Language Detection
+
+Use `config.LANGUAGE_EXTENSIONS` to detect language from file extension:
+- `.js`, `.mjs`, `.cjs`, `.ts`, `.tsx`, `.jsx` → JavaScript conventions
+- `.py`, `.pyw` → Python conventions
 
 ## Phase: Design
 
@@ -281,42 +298,36 @@ When this agent identifies issues, apply these specific fixes:
 
 ### Detection Patterns
 
+**Configuration Reference**: Use `NAMING_CONVENTIONS` and `LANGUAGE_EXTENSIONS` from `lib/core/config.js`
+
 ```javascript
-// Language detection
+// Import centralized config
+const { NAMING_CONVENTIONS, LANGUAGE_EXTENSIONS } = require('./lib/core/config');
+
+// Language detection using config
 function detectLanguage(filePath) {
   const ext = path.extname(filePath).toLowerCase();
-  if (['.js', '.mjs', '.cjs', '.ts', '.tsx', '.jsx'].includes(ext)) {
-    return 'javascript';
-  }
-  if (['.py', '.pyw'].includes(ext)) {
-    return 'python';
+  for (const [lang, extensions] of Object.entries(LANGUAGE_EXTENSIONS)) {
+    if (extensions.includes(ext)) return lang;
   }
   return 'unknown';
 }
 
-// File naming validation
-const FILE_PATTERNS = {
-  javascript: /^[a-z][a-z0-9]*(-[a-z0-9]+)*\.(js|mjs|cjs|ts|tsx|jsx)$/,
-  python: /^[a-z][a-z0-9]*(_[a-z0-9]+)*\.py$/
-};
+// Validate using config patterns
+function validateFileName(filePath, language) {
+  const conventions = NAMING_CONVENTIONS[language];
+  if (!conventions) return { valid: true, reason: 'Unknown language' };
+  return conventions.files.test(path.basename(filePath))
+    ? { valid: true }
+    : { valid: false, reason: `Does not match ${language} file naming convention` };
+}
 
-// Function naming validation
-const FUNCTION_PATTERNS = {
-  javascript: /^[a-z][a-zA-Z0-9]*$/,  // camelCase
-  python: /^[a-z][a-z0-9]*(_[a-z0-9]+)*$/  // snake_case
-};
-
-// Class naming validation (same for all languages)
-const CLASS_PATTERN = /^[A-Z][a-zA-Z0-9]*$/;  // PascalCase
-
-// Constant naming validation (same for all languages)
-const CONSTANT_PATTERN = /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$/;  // SCREAMING_SNAKE
-
-// Test file patterns
-const TEST_PATTERNS = {
-  javascript: /\.(test|spec)\.(js|ts|jsx|tsx)$/,
-  python: /^test_.*\.py$|_test\.py$/
-};
+// All patterns available in NAMING_CONVENTIONS:
+// - conventions.files      - File naming pattern
+// - conventions.functions  - Function naming pattern
+// - conventions.classes    - Class naming pattern (PascalCase)
+// - conventions.constants  - Constant naming pattern (SCREAMING_SNAKE)
+// - conventions.tests      - Test file naming pattern
 ```
 
 ## Handoff Protocol

@@ -4,8 +4,6 @@
  * Tests platform detection, config, and command execution
  */
 
-const path = require('path');
-
 let passed = 0;
 let failed = 0;
 
@@ -163,6 +161,126 @@ test('VALID_PACKAGE_NAME is RegExp', () => {
 });
 
 // ============================================
+// Test: Gitignore Patterns (Phase 11)
+// ============================================
+console.log('\n\x1b[1mGitignore Patterns (Phase 11)\x1b[0m');
+
+test('GITIGNORE_PATTERNS exists', () => {
+  assert(config.GITIGNORE_PATTERNS, 'GITIGNORE_PATTERNS should exist');
+  assert(typeof config.GITIGNORE_PATTERNS === 'object');
+});
+
+test('GITIGNORE_PATTERNS has all required categories', () => {
+  const required = ['os', 'ide', 'node', 'python', 'coverage', 'build', 'cache', 'secrets', 'logs', 'temp'];
+  for (const cat of required) {
+    assert(config.GITIGNORE_PATTERNS[cat], `Missing category: ${cat}`);
+    assert(Array.isArray(config.GITIGNORE_PATTERNS[cat]), `${cat} should be array`);
+    assert(config.GITIGNORE_PATTERNS[cat].length > 0, `${cat} should not be empty`);
+  }
+});
+
+test('GITIGNORE_PATTERNS.secrets includes .env', () => {
+  assert(config.GITIGNORE_PATTERNS.secrets.includes('.env'), '.env must be in secrets');
+});
+
+test('GITIGNORE_PATTERNS.secrets includes credential patterns', () => {
+  const secrets = config.GITIGNORE_PATTERNS.secrets;
+  assert(secrets.some(p => p.includes('.pem') || p.includes('*.pem')), 'Should include .pem files');
+  assert(secrets.some(p => p.includes('.key') || p.includes('*.key')), 'Should include .key files');
+});
+
+test('GITIGNORE_PATTERNS.os includes common OS files', () => {
+  const os = config.GITIGNORE_PATTERNS.os;
+  assert(os.includes('.DS_Store'), 'Should include .DS_Store');
+  assert(os.includes('Thumbs.db'), 'Should include Thumbs.db');
+});
+
+test('GITIGNORE_PATTERNS.node includes node_modules', () => {
+  assert(config.GITIGNORE_PATTERNS.node.includes('node_modules/'), 'Should include node_modules/');
+});
+
+test('GITIGNORE_PATTERNS.python includes __pycache__', () => {
+  assert(config.GITIGNORE_PATTERNS.python.includes('__pycache__/'), 'Should include __pycache__/');
+});
+
+// ============================================
+// Test: Root Directories (Phase 11)
+// ============================================
+console.log('\n\x1b[1mRoot Directories (Phase 11)\x1b[0m');
+
+test('ROOT_DIRECTORIES exists', () => {
+  assert(config.ROOT_DIRECTORIES, 'ROOT_DIRECTORIES should exist');
+  assert(Array.isArray(config.ROOT_DIRECTORIES));
+});
+
+test('ROOT_DIRECTORIES includes .husky', () => {
+  assert(config.ROOT_DIRECTORIES.includes('.husky'), '.husky must be allowed');
+});
+
+test('ROOT_DIRECTORIES includes .claude-plugin', () => {
+  assert(config.ROOT_DIRECTORIES.includes('.claude-plugin'), '.claude-plugin must be allowed');
+});
+
+test('ROOT_DIRECTORIES includes .github', () => {
+  assert(config.ROOT_DIRECTORIES.includes('.github'), '.github must be allowed');
+});
+
+test('ROOT_DIRECTORIES includes common source directories', () => {
+  assert(config.ROOT_DIRECTORIES.includes('src'), 'src must be allowed');
+  assert(config.ROOT_DIRECTORIES.includes('lib'), 'lib must be allowed');
+  assert(config.ROOT_DIRECTORIES.includes('tests'), 'tests must be allowed');
+});
+
+// ============================================
+// Test: Protected Branches (Phase 11)
+// ============================================
+console.log('\n\x1b[1mProtected Branches (Phase 11)\x1b[0m');
+
+test('PROTECTED_BRANCHES includes develop', () => {
+  assert(config.PROTECTED_BRANCHES.includes('develop'), 'develop should be protected');
+});
+
+test('PROTECTED_BRANCHES includes staging', () => {
+  assert(config.PROTECTED_BRANCHES.includes('staging'), 'staging should be protected');
+});
+
+test('PROTECTED_BRANCHES includes release', () => {
+  assert(config.PROTECTED_BRANCHES.includes('release'), 'release should be protected');
+});
+
+// ============================================
+// Test: Project Type Patterns (Phase 11)
+// ============================================
+console.log('\n\x1b[1mProject Type Patterns (Phase 11)\x1b[0m');
+
+test('PROJECT_TYPE_PATTERNS exists', () => {
+  assert(config.PROJECT_TYPE_PATTERNS, 'PROJECT_TYPE_PATTERNS should exist');
+});
+
+test('PROJECT_TYPE_PATTERNS.node includes package.json', () => {
+  assert(config.PROJECT_TYPE_PATTERNS.node.includes('package.json'));
+});
+
+test('PROJECT_TYPE_PATTERNS.python includes requirements.txt', () => {
+  assert(config.PROJECT_TYPE_PATTERNS.python.includes('requirements.txt'));
+});
+
+// ============================================
+// Test: ROOT_BLACKLIST regex fix (Phase 10)
+// ============================================
+console.log('\n\x1b[1mROOT_BLACKLIST Regex (Phase 10)\x1b[0m');
+
+test('ROOT_BLACKLIST catches nul file (plain)', () => {
+  const matches = config.ROOT_BLACKLIST.some(pattern => pattern.test('nul'));
+  assert(matches, 'Should match plain "nul" file');
+});
+
+test('ROOT_BLACKLIST catches .nul file', () => {
+  const matches = config.ROOT_BLACKLIST.some(pattern => pattern.test('.nul'));
+  assert(matches, 'Should match ".nul" file');
+});
+
+// ============================================
 // Test: Exec Module
 // ============================================
 console.log('\n\x1b[1mExec Module\x1b[0m');
@@ -220,8 +338,8 @@ test('exec successful command has output', () => {
 
 test('exec failed command has error', () => {
   const result = exec.exec('exit 1', { timeout: 1000 });
-  // Note: 'exit 1' may not work on all platforms
-  // This is a best-effort test
+  // Note: 'exit 1' may not work on all platforms - verify we get some result back
+  assert(result !== undefined);
 });
 
 test('execOrThrow returns output on success', () => {

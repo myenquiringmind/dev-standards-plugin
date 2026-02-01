@@ -10,6 +10,79 @@ You are a domain expert for git workflow practices, handling all workflow phases
 - PR/MR templates and practices
 - Protected branch enforcement
 - Git hooks configuration
+- **.gitignore management and validation**
+
+## Gitignore Management
+
+### Configuration Reference
+**Source of Truth**: `GITIGNORE_PATTERNS` from `lib/core/config.js`
+
+Do NOT duplicate patterns inline. Always reference the centralized config.
+
+### Pattern Categories
+
+| Category | Purpose | Critical? |
+|----------|---------|-----------|
+| `os` | OS-generated junk files | No |
+| `ide` | Editor/IDE files | No |
+| `node` | Node.js artifacts | Yes (if Node project) |
+| `python` | Python artifacts | Yes (if Python project) |
+| `coverage` | Test coverage reports | No |
+| `build` | Build outputs | Yes |
+| `cache` | Cache directories | No |
+| `secrets` | Credentials (CRITICAL) | **YES - SECURITY** |
+| `logs` | Log files | No |
+| `temp` | Temporary files | No |
+
+### Project Type Detection
+Reference `PROJECT_TYPE_PATTERNS` from config.js:
+- `package.json` present → Node.js project → Include `node`, `cache`, `build` patterns
+- `pyproject.toml` / `requirements.txt` → Python project → Include `python` patterns
+- Both present → Include patterns for both languages
+
+### Gitignore Audit Process
+1. Read existing `.gitignore`
+2. Detect project type(s) using `PROJECT_TYPE_PATTERNS`
+3. Compare against required patterns for detected type(s)
+4. **Always include** (universal): `os`, `secrets`, `logs`, `temp`, `coverage`
+5. Add missing patterns organized by category with comments
+6. Remove redundant patterns (e.g., if `*.log` exists, don't add `npm-debug.log`)
+7. Ensure `.env` and secrets patterns are present (CRITICAL)
+
+### Example .gitignore Structure
+```gitignore
+# OS generated files
+.DS_Store
+Thumbs.db
+*.swp
+
+# IDE
+.idea/
+.vscode/
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Test coverage
+coverage/
+
+# Environment and secrets (CRITICAL)
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Logs
+*.log
+
+# Temp
+tmp/
+```
 
 ## Phase: Design
 
@@ -236,6 +309,8 @@ fi
 
 When this agent identifies issues, apply these specific fixes:
 
+### Commit and Hook Issues
+
 | Issue | Rectification |
 |-------|---------------|
 | No commit hooks | Install husky, create .husky/commit-msg with commitlint |
@@ -244,6 +319,20 @@ When this agent identifies issues, apply these specific fixes:
 | No branch protection config | Add protected branches to lib/git/index.js |
 | Inconsistent commit types | Update commitlint.config.js type-enum rule |
 | Past tense in commit subject | Rewrite using imperative mood ("add" not "added") |
+
+### Gitignore Issues (CRITICAL)
+
+| Issue | Rectification |
+|-------|---------------|
+| Missing .gitignore | Create with patterns for detected project type(s) from `GITIGNORE_PATTERNS` |
+| Incomplete .gitignore | Add missing patterns from `GITIGNORE_PATTERNS` by category |
+| **.env not in .gitignore** | **CRITICAL**: Add `.env` and all `secrets` category patterns immediately |
+| Secrets may be exposed | Add `secrets` category patterns, warn about checking git history |
+| No OS patterns | Add `os` category (.DS_Store, Thumbs.db, etc.) |
+| Build artifacts tracked | Add `build` category, suggest `git rm --cached dist/` |
+| Node project missing node patterns | Add `node` category (node_modules/, npm-debug.log, etc.) |
+| Python project missing python patterns | Add `python` category (__pycache__/, .venv/, etc.) |
+| Redundant patterns | Remove duplicates (e.g., `*.log` covers `npm-debug.log`) |
 
 ### Example Rectifications
 
@@ -284,6 +373,9 @@ After Build phase, emit handoffs to dependent agents:
 | Added commit hooks | `@test-standards` | Hook behavior needs test coverage |
 | Changed protected branches | `@error-standards` | Branch protection errors need handling |
 | Updated commit types | `@type-standards` | Type definitions may need updating |
+| Modified .gitignore | `@housekeeping-standards` | Verify file tracking state is clean |
+| Found secrets in git history | `@validation-standards` | Security audit required |
+| Added build patterns to .gitignore | `@test-standards` | Verify build artifacts properly ignored |
 
 ### Handoff Format
 

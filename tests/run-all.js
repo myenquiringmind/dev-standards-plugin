@@ -23,10 +23,10 @@ console.log('\x1b[1m         DEV-STANDARDS PLUGIN TEST SUITE\x1b[0m');
 console.log('\x1b[1m' + '='.repeat(60) + '\x1b[0m');
 
 const testSuites = [
-  // Existing tests
+  // Existing tests (renamed to follow *.test.js convention)
   { name: 'Hooks Configuration', file: 'hooks.test.js' },
-  { name: 'Venv Utilities', file: 'test-venv.js' },
-  { name: 'Content Validation', file: 'test-content.js' },
+  { name: 'Venv Utilities', file: 'venv.test.js' },
+  { name: 'Content Validation', file: 'content.test.js' },
 
   // New unit tests
   { name: 'Core Modules (Unit)', file: 'unit/core.test.js' },
@@ -47,7 +47,7 @@ const testSuites = [
 
 let totalPassed = 0;
 let totalFailed = 0;
-let failedSuites = [];
+const failedSuites = [];
 
 for (const suite of testSuites) {
   console.log(`\n\x1b[36m▶ Running: ${suite.name}\x1b[0m`);
