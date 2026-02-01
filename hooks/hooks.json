@@ -106,10 +106,32 @@
         }
       ],
       "description": "Log tool completion for audit trail"
+    },
+    {
+      "matcher": "Edit|Write|MultiEdit|Bash",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node -e \"const{execSync}=require('child_process');try{const status=execSync('git status --porcelain 2>/dev/null',{encoding:'utf8',timeout:3000});const count=status.trim().split('\\n').filter(l=>l).length;if(count>10){console.error('[Git Hygiene] Warning: '+count+' uncommitted changes. Consider committing soon.')}}catch{}let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(d))\"",
+          "timeout": 5
+        }
+      ],
+      "description": "Warn when uncommitted changes exceed threshold"
     }
   ],
 
   "Stop": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node -e \"const{execSync}=require('child_process');try{const status=execSync('git status --porcelain 2>/dev/null',{encoding:'utf8',timeout:3000});const lines=status.trim().split('\\n').filter(l=>l);if(lines.length>0){console.log(JSON.stringify({decision:'block',reason:'Cannot end session with '+lines.length+' uncommitted changes. Please commit or stash changes first.',uncommitted_files:lines.slice(0,10)}))}else{console.log(JSON.stringify({decision:'allow'}))}}catch(e){console.log(JSON.stringify({decision:'allow'}))}\"",
+          "timeout": 5
+        }
+      ],
+      "description": "Block session end if uncommitted changes exist"
+    },
     {
       "matcher": "*",
       "hooks": [
