@@ -1,0 +1,34 @@
+{
+  "name": "dev-standards",
+  "version": "1.1.0",
+  "description": "Enforces best practice development standards including DRY/SOLID principles, comprehensive testing, type checking, linting, validation, and structured workflows across all projects.",
+  "author": "Dev Standards Team",
+  "repository": "https://github.com/dev-standards/claude-code-plugin",
+  "components": {
+    "agents": [
+      "agents/investigator.md",
+      "agents/code-reviewer.md",
+      "agents/test-writer.md",
+      "agents/doc-writer.md"
+    ],
+    "commands": [
+      "commands/plan.md",
+      "commands/fix.md",
+      "commands/validate.md",
+      "commands/review.md",
+      "commands/setup.md",
+      "commands/typecheck.md",
+      "commands/logs.md"
+    ],
+    "skills": [
+      "skills/dev-workflow"
+    ]
+  },
+  "hooks": "hooks/hooks.json",
+  "config": "config/defaults.json",
+  "scripts": {
+    "test": "node tests/hooks.test.js",
+    "validate": "node scripts/validate-hooks.js"
+  },
+  "postInstall": "echo 'Dev Standards plugin installed. Run /dev-standards:setup to initialize project.'"
+}

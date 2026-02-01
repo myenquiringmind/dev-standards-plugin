@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/dev-standards/claude-code-plugin/schemas/hooks.schema.json",
+  "title": "Claude Code Hooks Configuration",
+  "description": "Schema for validating hooks.json configuration files in Claude Code plugins",
+  "type": "object",
+  "properties": {
+    "_meta": {
+      "type": "object",
+      "description": "Metadata about the hooks configuration",
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Semantic version of the hooks configuration"
+        },
+        "changelog": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "History of changes to the hooks"
+        }
+      },
+      "required": ["version"]
+    },
+    "SessionStart": { "$ref": "#/definitions/hookEntryArray" },
+    "UserPromptSubmit": { "$ref": "#/definitions/hookEntryArray" },
+    "PreToolUse": { "$ref": "#/definitions/hookEntryArray" },
+    "PostToolUse": { "$ref": "#/definitions/hookEntryArray" },
+    "Stop": { "$ref": "#/definitions/hookEntryArray" },
+    "SubagentStop": { "$ref": "#/definitions/hookEntryArray" },
+    "PreCompact": { "$ref": "#/definitions/hookEntryArray" }
+  },
+  "definitions": {
+    "hookEntryArray": {
+      "type": "array",
+      "description": "Array of hook entries for a specific event",
+      "items": { "$ref": "#/definitions/hookEntry" }
+    },
+    "hookEntry": {
+      "type": "object",
+      "description": "A single hook entry with matcher and hooks array",
+      "required": ["matcher", "hooks"],
+      "properties": {
+        "matcher": {
+          "type": "string",
+          "description": "Regex pattern to match tool names, or '*' for all tools"
+        },
+        "hooks": {
+          "type": "array",
+          "description": "Array of hooks to execute when matcher matches",
+          "items": { "$ref": "#/definitions/hook" },
+          "minItems": 1
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of what this hook entry does"
+        }
+      },
+      "additionalProperties": false
+    },
+    "hook": {
+      "type": "object",
+      "description": "A single hook action (command or prompt)",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["command", "prompt"],
+          "description": "Type of hook: 'command' runs a shell command, 'prompt' asks Claude"
+        },
+        "command": {
+          "type": "string",
+          "description": "Shell command to execute (required for type: command)"
+        },
+        "prompt": {
+          "type": "string",
+          "description": "Prompt text for Claude (required for type: prompt)"
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300,
+          "description": "Timeout in seconds for command execution (required for type: command)"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "type": { "const": "command" } }
+          },
+          "then": {
+            "required": ["command", "timeout"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "prompt" } }
+          },
+          "then": {
+            "required": ["prompt"]
+          }
+        }
+      ],
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

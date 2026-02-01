@@ -1,0 +1,57 @@
+{
+  "$schema": "../schemas/config.schema.json",
+  "protectedBranches": [
+    "main",
+    "master",
+    "production"
+  ],
+  "formatters": {
+    "js": "npx prettier --write",
+    "jsx": "npx prettier --write",
+    "ts": "npx prettier --write",
+    "tsx": "npx prettier --write",
+    "json": "npx prettier --write",
+    "css": "npx prettier --write",
+    "scss": "npx prettier --write",
+    "html": "npx prettier --write",
+    "md": "npx prettier --write",
+    "py": "ruff format",
+    "go": "gofmt -w",
+    "rs": "rustfmt"
+  },
+  "typeCheckers": {
+    "ts": "npx tsc --noEmit",
+    "tsx": "npx tsc --noEmit",
+    "py": "mypy --ignore-missing-imports"
+  },
+  "linters": {
+    "js": "npx eslint --format compact",
+    "jsx": "npx eslint --format compact",
+    "ts": "npx eslint --format compact",
+    "tsx": "npx eslint --format compact",
+    "py": "ruff check"
+  },
+  "dangerousPatterns": {
+    "description": "Regex patterns for dangerous commands that should be blocked",
+    "unix": [
+      "rm\\s+-rf\\s+/(?!tmp)",
+      "rm\\s+-rf\\s+~",
+      "rm\\s+-rf\\s+\\*",
+      "mkfs\\.",
+      "dd\\s+if=.*of=/dev",
+      "chmod\\s+-R\\s+777\\s+/",
+      ">/dev/sda"
+    ],
+    "windows": [
+      "format\\s+[cdefgh]:",
+      "Remove-Item.*-Recurse.*-Force.*[A-Z]:\\\\"
+    ],
+    "crossPlatform": [
+      "DROP\\s+(DATABASE|TABLE)",
+      "TRUNCATE\\s+TABLE",
+      "DELETE\\s+FROM\\s+\\w+\\s*;?$",
+      "curl.*\\|\\s*(bash|sh)",
+      "wget.*\\|\\s*(bash|sh)"
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "dev-standards-marketplace",
+  "description": "Development standards Claude Code plugins and tools",
+  "plugins": [
+    {
+      "name": "dev-standards",
+      "path": ".",
+      "description": "Core development standards with DRY/SOLID, testing, validation workflows"
+    }
+  ]
+}

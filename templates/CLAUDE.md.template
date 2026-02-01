@@ -1,0 +1,81 @@
+# Project Name
+
+> Copy this file to your project root and customize it.
+
+## Quick Reference
+
+| Task | Command |
+|------|---------|
+| Test | `npm test` |
+| Lint | `npm run lint` |
+| Format | `npm run format` |
+| Build | `npm run build` |
+| Dev | `npm run dev` |
+
+## Project Structure
+
+```
+src/
+├── components/    # UI components
+├── services/      # Business logic
+├── utils/         # Shared utilities
+├── types/         # TypeScript types
+└── __tests__/     # Test files
+```
+
+## Key Conventions
+
+### Naming
+- Components: `PascalCase` (e.g., `UserProfile.tsx`)
+- Utilities: `camelCase` (e.g., `formatDate.ts`)
+- Constants: `SCREAMING_SNAKE_CASE`
+- Test files: `*.test.ts` or `*.spec.ts`
+
+### Code Style
+- Prefer functional components with hooks
+- Use TypeScript strict mode
+- No `any` types - use `unknown` if truly unknown
+- Explicit error handling, no silent catches
+
+### Git
+- Feature branches: `feature/description`
+- Bug fixes: `fix/description`
+- Commits follow conventional format: `type(scope): description`
+
+## Common Tasks
+
+### Adding a New Feature
+1. Create feature branch from `main`
+2. Implement with tests
+3. Run `/validate` before PR
+4. Request review
+
+### Debugging Issues
+1. Reproduce the issue
+2. Check logs: `npm run logs`
+3. Use `/fix` command for structured debugging
+
+### Deployment
+1. Merge to `main`
+2. CI/CD handles the rest
+3. Verify in staging before production
+
+## Environment Variables
+
+| Variable | Purpose | Required |
+|----------|---------|----------|
+| `DATABASE_URL` | Database connection | Yes |
+| `API_KEY` | External API | Yes |
+| `DEBUG` | Enable debug mode | No |
+
+## Dependencies of Note
+
+- **[framework]**: Core framework
+- **[orm]**: Database ORM
+- **[testing]**: Test framework
+
+## Gotchas / Known Issues
+
+- [Document any non-obvious behaviors]
+- [Known bugs with workarounds]
+- [Performance considerations]

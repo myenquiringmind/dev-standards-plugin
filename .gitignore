@@ -1,0 +1,25 @@
+# Local overrides
+.claude/settings.local.json
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor files
+*.swp
+*.swo
+.idea/
+.vscode/
+*.sublime-*
+
+# Logs
+*.log
+
+# Node.js
+node_modules/
+npm-debug.log*
+
+# Test artifacts
+coverage/
+.nyc_output/

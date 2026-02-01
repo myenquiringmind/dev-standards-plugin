@@ -1,0 +1,160 @@
+{
+  "_meta": {
+    "version": "1.1.0",
+    "changelog": [
+      "1.0.0 - Initial release: formatting, branch protection, validation",
+      "1.1.0 - Added type checking, logging, lint-on-save, cross-platform support"
+    ]
+  },
+
+  "SessionStart": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node -e \"const os=require('os');const fs=require('fs');const path=require('path');const{execSync}=require('child_process');const logDir=path.join(os.homedir(),'.claude','logs');try{fs.mkdirSync(logDir,{recursive:true})}catch(e){}const logFile=path.join(logDir,'session.log');const ts=new Date().toISOString();const cwd=process.cwd();try{fs.appendFileSync(logFile,'['+ts+'] SESSION_START in '+cwd+'\\n')}catch(e){}console.log('--- Project Context ---');try{const status=execSync('git status --short',{encoding:'utf8',timeout:3000}).trim();console.log(status||'Working tree clean')}catch(e){console.log('Not a git repo')};console.log('---');const todos=['TODO.md','TASKS.md'];for(const t of todos){const f=path.join(cwd,t);if(fs.existsSync(f)){try{console.log(fs.readFileSync(f,'utf8').split('\\n').slice(0,20).join('\\n'))}catch(e){}break}}\"",
+          "timeout": 8
+        }
+      ],
+      "description": "Load project context and log session start"
+    }
+  ],
+
+  "UserPromptSubmit": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node -e \"const os=require('os');const fs=require('fs');const path=require('path');const logDir=path.join(os.homedir(),'.claude','logs');try{fs.mkdirSync(logDir,{recursive:true})}catch(e){}try{fs.appendFileSync(path.join(logDir,'session.log'),'['+new Date().toISOString()+'] PROMPT\\n')}catch(e){}\"",
+          "timeout": 3
+        }
+      ],
+      "description": "Log user prompts for session history"
+    }
+  ],
+
+  "PreToolUse": [
+    {
+      "matcher": "Edit|Write|MultiEdit",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node -e \"const{execSync}=require('child_process');try{const branch=execSync('git branch --show-current 2>&1',{encoding:'utf8',timeout:3000}).trim();const protected=['main','master','production'];if(protected.includes(branch)){console.log(JSON.stringify({decision:'block',reason:'Cannot edit directly on protected branch ('+branch+'). Create a feature branch first: git checkout -b feature/your-feature'}));process.exit(0)}}catch(e){}let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(d))\"",
+          "timeout": 5
+        }
+      ],
+      "description": "Block direct edits to protected branches"
+    },
+    {
+      "matcher": "Bash",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{if(!d||!d.trim()){console.log(d||'');process.exit(0)}const i=JSON.parse(d);if(!i||typeof i!=='object'){console.log(d);process.exit(0)}const cmd=(i.tool_input&&typeof i.tool_input.command==='string')?i.tool_input.command:'';if(!cmd){console.log(d);process.exit(0)}const dangerous=[/rm\\s+-rf\\s+\\/(?!tmp)/,/rm\\s+-rf\\s+~/,/rm\\s+-rf\\s+\\*/,/DROP\\s+(DATABASE|TABLE)/i,/TRUNCATE\\s+TABLE/i,/DELETE\\s+FROM\\s+\\w+\\s*;?$/i,/:(){\\s*:|&\\s*};:/,/>\\/dev\\/sda/,/mkfs\\./,/dd\\s+if=.*of=\\/dev/,/chmod\\s+-R\\s+777\\s+\\//,/curl.*\\|\\s*(bash|sh)/,/wget.*\\|\\s*(bash|sh)/,/format\\s+[cdefgh]:/i,/Remove-Item.*-Recurse.*-Force.*[A-Z]:\\\\/i];for(const p of dangerous){if(p.test(cmd)){console.log(JSON.stringify({decision:'block',reason:'Potentially destructive command blocked: '+cmd.substring(0,50)}));process.exit(0)}}console.log(d)}catch(e){console.log(d||'{}')}})\"",
+          "timeout": 5
+        }
+      ],
+      "description": "Block dangerous shell commands"
+    }
+  ],
+
+  "PostToolUse": [
+    {
+      "matcher": "Edit|Write|MultiEdit",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node -e \"const{execSync}=require('child_process');const fs=require('fs');const path=require('path');let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{if(!d||!d.trim()){console.log(d||'');return}const i=JSON.parse(d);if(!i||typeof i!=='object'){console.log(d);return}const p=i.tool_input?.file_path||i.tool_input?.files?.[0]?.file_path;if(!p||typeof p!=='string'){console.log(d);return}const resolved=path.resolve(p);if(!fs.existsSync(resolved)){console.log(d);return}const ext=path.extname(resolved).slice(1).toLowerCase();const formatters={'js':'npx prettier --write','jsx':'npx prettier --write','ts':'npx prettier --write','tsx':'npx prettier --write','json':'npx prettier --write','css':'npx prettier --write','scss':'npx prettier --write','html':'npx prettier --write','md':'npx prettier --write','py':'ruff format','go':'gofmt -w','rs':'rustfmt'};const fmt=formatters[ext];if(fmt){try{execSync(fmt+' '+JSON.stringify(resolved),{stdio:'pipe',timeout:10000})}catch(e){}}console.log(d)}catch(e){console.log(d||'')}})\"",
+          "timeout": 15
+        }
+      ],
+      "description": "Auto-format files after editing"
+    },
+    {
+      "matcher": "Edit|Write|MultiEdit",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node -e \"const{execSync}=require('child_process');const fs=require('fs');const path=require('path');let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{if(!d||!d.trim()){console.log(d||'');return}const i=JSON.parse(d);if(!i||typeof i!=='object'){console.log(d);return}const p=i.tool_input?.file_path||i.tool_input?.files?.[0]?.file_path;if(!p||typeof p!=='string'){console.log(d);return}const resolved=path.resolve(p);const ext=path.extname(resolved).slice(1).toLowerCase();let errors=[];if(['ts','tsx'].includes(ext)){try{execSync('npx tsc --noEmit '+JSON.stringify(resolved)+' 2>&1',{timeout:30000})}catch(e){const msg=e.stdout?.toString()||e.stderr?.toString()||'';if(msg.includes('error TS')){const errLine=msg.split('\\n').find(l=>l.includes('error TS'));errors.push('TypeScript: '+(errLine||'type error').substring(0,100))}}}if(ext==='py'){try{execSync('mypy --ignore-missing-imports '+JSON.stringify(resolved)+' 2>&1',{timeout:30000})}catch(e){const out=e.stdout?.toString()||e.stderr?.toString()||'';if(out.includes('error:')){const errLine=out.split('\\n').find(l=>l.includes('error:'));errors.push('mypy: '+(errLine||'type error').substring(0,100))}}}if(errors.length){console.error('[Type Check] '+errors.join('; '))}console.log(d)}catch(e){console.log(d||'')}})\"",
+          "timeout": 35
+        }
+      ],
+      "description": "Run type checking on TypeScript and Python files"
+    },
+    {
+      "matcher": "Edit|Write|MultiEdit",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node -e \"const{execSync}=require('child_process');const fs=require('fs');const path=require('path');let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{if(!d||!d.trim()){console.log(d||'');return}const i=JSON.parse(d);if(!i||typeof i!=='object'){console.log(d);return}const p=i.tool_input?.file_path||i.tool_input?.files?.[0]?.file_path;if(!p||typeof p!=='string'){console.log(d);return}const resolved=path.resolve(p);const ext=path.extname(resolved).slice(1).toLowerCase();let warnings=[];if(['js','jsx','ts','tsx'].includes(ext)){try{execSync('npx eslint '+JSON.stringify(resolved)+' --format compact 2>&1',{timeout:15000})}catch(e){const out=e.stdout?.toString()||e.stderr?.toString()||'';if(out.includes('error')||out.includes('warning')){warnings.push(out.split('\\n').find(l=>l.includes('error')||l.includes('warning'))||'lint issues')}}}if(ext==='py'){try{execSync('ruff check '+JSON.stringify(resolved)+' 2>&1',{timeout:15000})}catch(e){const out=e.stdout?.toString()||e.stderr?.toString()||'';if(out.trim()&&!out.includes('All checks passed')){warnings.push(out.split('\\n')[0])}}}if(warnings.length){console.error('[Lint] '+warnings.join('; '))}console.log(d)}catch(e){console.log(d||'')}})\"",
+          "timeout": 20
+        }
+      ],
+      "description": "Run linting on modified files and report warnings"
+    },
+    {
+      "matcher": "Edit|Write|MultiEdit|Bash",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node -e \"const os=require('os');const fs=require('fs');const path=require('path');const logDir=path.join(os.homedir(),'.claude','logs');try{fs.mkdirSync(logDir,{recursive:true})}catch(e){}try{fs.appendFileSync(path.join(logDir,'session.log'),'['+new Date().toISOString()+'] TOOL_COMPLETE\\n')}catch(e){}let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(d))\"",
+          "timeout": 3
+        }
+      ],
+      "description": "Log tool completion for audit trail"
+    }
+  ],
+
+  "Stop": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "prompt",
+          "prompt": "Before completing, verify: (1) Have changes been tested? (2) Are changes running in the target environment (not just written to disk)? (3) Has the original objective been validated as achieved? (4) Are there any type errors or lint warnings to address? If any verification is incomplete, continue with the remaining steps. Only respond 'complete' when all verifications pass."
+        }
+      ],
+      "description": "Validation checkpoint including type/lint verification"
+    },
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node -e \"const os=require('os');const fs=require('fs');const path=require('path');const logDir=path.join(os.homedir(),'.claude','logs');try{fs.mkdirSync(logDir,{recursive:true})}catch(e){}try{fs.appendFileSync(path.join(logDir,'session.log'),'['+new Date().toISOString()+'] TASK_COMPLETE\\n')}catch(e){}\"",
+          "timeout": 3
+        }
+      ],
+      "description": "Log task completion"
+    }
+  ],
+
+  "SubagentStop": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "prompt",
+          "prompt": "Provide a concise summary (under 100 words) of: (1) What was accomplished, (2) Key findings or issues discovered, (3) Any recommendations for the main agent."
+        }
+      ],
+      "description": "Ensure subagents provide actionable summaries"
+    }
+  ],
+
+  "PreCompact": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node -e \"const os=require('os');const fs=require('fs');const path=require('path');const logDir=path.join(os.homedir(),'.claude','logs');try{fs.mkdirSync(logDir,{recursive:true})}catch(e){}const cwd=process.cwd();try{fs.appendFileSync(path.join(logDir,'session.log'),'['+new Date().toISOString()+'] COMPACT in '+cwd+'\\n')}catch(e){}\"",
+          "timeout": 3
+        }
+      ],
+      "description": "Log compaction events"
+    }
+  ]
+}
