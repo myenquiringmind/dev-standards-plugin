@@ -19,12 +19,18 @@ Enforce consistent development standards across all your projects with automated
 ### Automatic Hooks
 | Hook | What It Does |
 |------|--------------|
-| SessionStart | Loads git status + TODO context, logs session |
+| SessionStart | Loads git status + TODO context, logs session, **checks for updates** |
 | UserPromptSubmit | Logs prompts for session history |
 | PreToolUse | Blocks dangerous commands, protects main branch |
-| PostToolUse | Auto-formats, **type checks**, **lints**, logs activity |
+| PostToolUse | Auto-formats, **type checks**, **lints**, logs activity, **venv-aware** |
 | Stop | Validation checkpoint (tests, types, lint) |
 | SubagentStop | Ensures subagents provide summaries |
+
+### Python Venv Support
+- **Auto-creates** `.venv` on first Python file edit
+- Uses **uv** (preferred) or `python -m venv` (fallback)
+- **Auto-installs** plugin tools (ruff, mypy) into project venv
+- All Python hooks run through the project's venv
 
 ### Specialized Agents
 | Agent | Purpose | Invoke |
@@ -246,12 +252,16 @@ You are specialized for [purpose].
 ```
 dev-standards-plugin/
 ├── .claude-plugin/
-│   ├── plugin.json          # Plugin manifest (v1.1.0)
+│   ├── plugin.json          # Plugin manifest (v1.2.0)
 │   └── marketplace.json     # Marketplace catalog
 ├── config/
 │   └── defaults.json        # Configurable defaults
 ├── hooks/
 │   └── hooks.json           # Automatic enforcement (format, type, lint, log)
+├── lib/
+│   ├── utils.js             # Shared utilities (venv, git, tools)
+│   ├── venv.js              # Venv-specific utilities
+│   └── hook-runner.js       # Unified hook entry point
 ├── agents/
 │   ├── investigator.md      # Root cause analysis
 │   ├── code-reviewer.md     # Quality review
@@ -271,7 +281,10 @@ dev-standards-plugin/
 ├── templates/
 │   └── CLAUDE.md.template   # Project starter template
 ├── tests/
-│   └── hooks.test.js        # Plugin test suite
+│   ├── hooks.test.js        # Structure & schema tests (50 tests)
+│   ├── test-venv.js         # Venv utilities tests (25 tests)
+│   ├── test-content.js      # Content validation tests (46 tests)
+│   └── test-hooks-live.js   # Live functional tests (19 tests)
 ├── schemas/
 │   └── hooks.schema.json    # JSON Schema for validation
 ├── scripts/
@@ -284,16 +297,35 @@ dev-standards-plugin/
 
 ## Testing the Plugin
 
-Run the built-in test suite:
+Run the full test suite (140 tests):
 
 ```bash
-node tests/hooks.test.js
+node tests/hooks.test.js      # Structure & schema (50 tests)
+node tests/test-venv.js       # Venv utilities (25 tests)
+node tests/test-content.js    # Content validation (46 tests)
+node tests/test-hooks-live.js # Live functional (19 tests)
 ```
 
 Validate hooks.json schema:
 
 ```bash
 node scripts/validate-hooks.js
+```
+
+## Update Checking
+
+The plugin automatically checks for updates on session start:
+- Queries GitHub releases (non-blocking, cached for 24 hours)
+- If a newer version is available, displays a notice:
+  ```
+  [dev-standards] Update available: 1.2.0 -> 1.3.0 (https://github.com/myenquiringmind/dev-standards-plugin/releases)
+  ```
+- Never blocks or interrupts your workflow
+
+To manually update:
+```bash
+cd /path/to/plugin
+git pull origin main
 ```
 
 ## Why This Approach Works
@@ -304,6 +336,7 @@ node scripts/validate-hooks.js
 4. **Shared Knowledge**: Skills carry domain expertise across sessions
 5. **Easy Distribution**: Plugin system makes it one command to install anywhere
 6. **Cross-Platform**: Works on Windows, macOS, and Linux
+7. **Self-Updating Awareness**: Notifies you when updates are available
 
 ## Contributing
 

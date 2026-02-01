@@ -1,14 +1,23 @@
 {
   "name": "dev-standards",
-  "version": "1.1.0",
+  "version": "1.3.0",
   "description": "Enforces best practice development standards including DRY/SOLID principles, comprehensive testing, type checking, linting, validation, and structured workflows across all projects.",
   "author": "Dev Standards Team",
   "repository": "https://github.com/myenquiringmind/dev-standards-plugin",
   "components": {
     "agents": [
+      "agents/standards-orchestrator.md",
+      "agents/logging-standards.md",
+      "agents/error-standards.md",
+      "agents/type-standards.md",
+      "agents/lint-standards.md",
+      "agents/test-standards.md",
+      "agents/validation-standards.md",
+      "agents/git-standards.md",
+      "agents/housekeeping-standards.md",
+      "agents/naming-standards.md",
       "agents/investigator.md",
       "agents/code-reviewer.md",
-      "agents/test-writer.md",
       "agents/doc-writer.md"
     ],
     "commands": [

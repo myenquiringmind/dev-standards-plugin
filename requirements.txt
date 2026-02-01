@@ -1,0 +1,8 @@
+# Python dependencies for dev-standards plugin
+# These are automatically installed into the project's .venv
+
+# Formatting and linting (all-in-one, fast)
+ruff>=0.1.0
+
+# Type checking
+mypy>=1.0.0

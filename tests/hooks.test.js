@@ -309,7 +309,21 @@ describe('Required Files', () => {
     'CONTRIBUTING.md',
     '.gitignore',
     'skills/dev-workflow/SKILL.md',
-    'templates/CLAUDE.md.template'
+    'templates/CLAUDE.md.template',
+    'lib/utils.js',
+    'lib/hook-runner.js',
+    'requirements.txt',
+    // New modular structure
+    'lib/core/index.js',
+    'lib/core/platform.js',
+    'lib/core/config.js',
+    'lib/core/exec.js',
+    'lib/venv/index.js',
+    'lib/git/index.js',
+    'lib/logging/index.js',
+    'lib/validation/index.js',
+    'lib/tools/index.js',
+    'lib/version/index.js'
   ];
 
   for (const file of requiredFiles) {

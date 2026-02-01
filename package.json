@@ -1,0 +1,39 @@
+{
+  "name": "dev-standards-plugin",
+  "version": "1.3.0",
+  "description": "Claude Code plugin for enforcing development standards",
+  "main": "lib/utils.js",
+  "scripts": {
+    "test": "node tests/run-all.js",
+    "test:hooks": "node tests/hooks.test.js",
+    "test:venv": "node tests/test-venv.js",
+    "test:content": "node tests/test-content.js",
+    "lint": "eslint lib/ tests/",
+    "lint:fix": "eslint lib/ tests/ --fix",
+    "prepare": "husky"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "plugin",
+    "development-standards",
+    "linting",
+    "type-checking",
+    "hooks"
+  ],
+  "author": "Dev Standards Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/myenquiringmind/dev-standards-plugin"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^18.0.0",
+    "@commitlint/config-conventional": "^18.0.0",
+    "eslint": "^8.57.0",
+    "husky": "^9.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

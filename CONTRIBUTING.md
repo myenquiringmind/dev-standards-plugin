@@ -8,8 +8,72 @@ This guide explains how to improve, update, and maintain the plugin over time.
 |--------|----------|---------|
 | Automatic behavior | `hooks/hooks.json` | Auto-format, type check |
 | Workflow command | `commands/*.md` | `/typecheck`, `/deploy` |
-| Specialized worker | `agents/*.md` | `@security-reviewer` |
+| Domain agent | `agents/*-standards.md` | `@test-standards` |
+| Specialized worker | `agents/*.md` | `@code-reviewer` |
 | Domain knowledge | `skills/*/SKILL.md` | Testing patterns |
+
+## Architecture Overview
+
+### Modular Library Structure
+
+```
+lib/
+├── core/
+│   ├── platform.js   # Platform detection (Windows/Unix)
+│   ├── config.js     # Centralized constants & timeouts
+│   ├── exec.js       # Command execution with escaping
+│   └── index.js      # Core barrel export
+├── venv/             # Virtual environment management
+├── git/              # Git operations & branch protection
+├── logging/          # Session logging with debug support
+├── validation/       # Input validation & security
+├── tools/            # Formatter/linter/typechecker
+├── version/          # Version checking
+└── utils.js          # Re-exports for compatibility
+```
+
+### Agent Architecture: Orchestrator + Domain Agents
+
+The plugin uses a hybrid agent architecture:
+
+```
+@standards-orchestrator (workflow coordinator)
+    │
+    ├── @logging-standards    (all phases for logging)
+    ├── @error-standards      (all phases for error handling)
+    ├── @type-standards       (all phases for typing)
+    ├── @lint-standards       (all phases for linting)
+    ├── @test-standards       (all phases for testing)
+    ├── @validation-standards (all phases for input validation)
+    └── @git-standards        (all phases for git commits)
+```
+
+Each domain agent follows the same workflow phases:
+1. **Design** → Analyze and propose improvements
+2. **Validate Design** → Review before implementation
+3. **Build** → Implement the design
+4. **Test** → Write and run tests
+5. **Validate** → Final verification
+
+### Debug Logging
+
+Enable debug output for troubleshooting:
+
+```bash
+# Set environment variable
+export DEBUG=true
+
+# Or in Windows
+set DEBUG=true
+
+# Then run your command - you'll see [DEBUG] messages
+```
+
+Debug logging shows:
+- Command execution details
+- File operations
+- Venv creation and package installation
+- Version cache operations
 
 ## Workflow for Changes
 

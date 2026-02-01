@@ -33,9 +33,16 @@ const ROOT = path.join(__dirname, '..');
 console.log('\n\x1b[1mAgent Files\x1b[0m');
 
 const agents = [
+  'agents/standards-orchestrator.md',
+  'agents/logging-standards.md',
+  'agents/error-standards.md',
+  'agents/type-standards.md',
+  'agents/lint-standards.md',
+  'agents/test-standards.md',
+  'agents/validation-standards.md',
+  'agents/git-standards.md',
   'agents/investigator.md',
   'agents/code-reviewer.md',
-  'agents/test-writer.md',
   'agents/doc-writer.md'
 ];
 
