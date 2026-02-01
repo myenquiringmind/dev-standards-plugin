@@ -6,10 +6,10 @@ Enforce consistent development standards across all your projects with automated
 
 ```bash
 # Add this repo as a marketplace (one-time)
-/plugin marketplace add dev-standards/claude-code-plugin
+/plugin marketplace add myenquiringmind/dev-standards-plugin
 
 # Install in any project
-/plugin install dev-standards@dev-standards-marketplace
+/plugin install dev-standards@myenquiringmind
 
 # That's it! Standards now enforced automatically.
 ```
@@ -58,7 +58,7 @@ Enforce consistent development standards across all your projects with automated
 
 ```bash
 # Fork or clone this repo
-git clone https://github.com/dev-standards/claude-code-plugin
+git clone https://github.com/myenquiringmind/dev-standards-plugin
 cd dev-standards-plugin
 
 # Customize if needed, then push to your org
@@ -75,7 +75,7 @@ git push -u origin main
 **Step 3**: Install in any project
 
 ```
-/plugin install dev-standards@dev-standards-marketplace
+/plugin install dev-standards@myenquiringmind
 ```
 
 ### Option 2: Git Submodule (Alternative)
@@ -83,7 +83,7 @@ git push -u origin main
 **macOS/Linux:**
 ```bash
 # Add as submodule
-git submodule add https://github.com/dev-standards/claude-code-plugin .claude-standards
+git submodule add https://github.com/myenquiringmind/dev-standards-plugin .claude-standards
 
 # Symlink components
 ln -s .claude-standards/hooks/hooks.json .claude/hooks.json
@@ -95,7 +95,7 @@ ln -s .claude-standards/skills .claude/skills
 **Windows (PowerShell):**
 ```powershell
 # Add as submodule
-git submodule add https://github.com/dev-standards/claude-code-plugin .claude-standards
+git submodule add https://github.com/myenquiringmind/dev-standards-plugin .claude-standards
 
 # Copy components (symlinks require admin on Windows)
 Copy-Item .claude-standards\hooks\hooks.json .claude\hooks.json
@@ -109,14 +109,14 @@ Copy-Item -Recurse .claude-standards\skills .claude\skills
 **macOS/Linux:**
 ```bash
 # Clone and copy
-git clone https://github.com/dev-standards/claude-code-plugin /tmp/standards
+git clone https://github.com/myenquiringmind/dev-standards-plugin /tmp/standards
 cp -r /tmp/standards/hooks /tmp/standards/agents /tmp/standards/commands /tmp/standards/skills .claude/
 ```
 
 **Windows (PowerShell):**
 ```powershell
 # Clone and copy
-git clone https://github.com/dev-standards/claude-code-plugin $env:TEMP\standards
+git clone https://github.com/myenquiringmind/dev-standards-plugin $env:TEMP\standards
 Copy-Item -Recurse "$env:TEMP\standards\hooks","$env:TEMP\standards\agents","$env:TEMP\standards\commands","$env:TEMP\standards\skills" .\.claude\
 ```
 

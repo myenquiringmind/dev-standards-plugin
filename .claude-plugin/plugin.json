@@ -3,7 +3,7 @@
   "version": "1.1.0",
   "description": "Enforces best practice development standards including DRY/SOLID principles, comprehensive testing, type checking, linting, validation, and structured workflows across all projects.",
   "author": "Dev Standards Team",
-  "repository": "https://github.com/dev-standards/claude-code-plugin",
+  "repository": "https://github.com/myenquiringmind/dev-standards-plugin",
   "components": {
     "agents": [
       "agents/investigator.md",
