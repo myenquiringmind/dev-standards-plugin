@@ -5,6 +5,29 @@ All notable changes to the dev-standards plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-02-03
+
+### Added
+- **Git workflow integration for orchestrator**:
+  - Automatic branch creation (`feat/orchestrator-<domain>-<timestamp>`)
+  - Phase commits with conventional commit messages
+  - Rollback points at checkpoint phases (design, build)
+  - PR finalization option on completion
+- `gitMode` parameter for orchestrator: `auto`, `manual`, `disabled`
+- Orchestrator state persistence across sessions (`tmp/.orchestrator-state.json`)
+- Additional domain agents: `@housekeeping-standards`, `@naming-standards`
+- Handoff orchestration with cycle detection
+- Checkpoint approval protocol (approve/modify/reject)
+
+### Changed
+- Orchestrator refuses to run on protected branches
+- State persistence includes git workflow tracking
+- PostToolUse hooks track changed files during orchestrator workflow
+
+### Fixed
+- Cleanup for `tmpclaude-*` temp files in hooks
+- Plugin.json schema compliance
+
 ## [1.3.0] - 2026-02-01
 
 ### Added
