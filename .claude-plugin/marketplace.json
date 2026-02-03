@@ -4,7 +4,7 @@
   "plugins": [
     {
       "name": "dev-standards",
-      "path": ".",
+      "source": ".",
       "description": "Core development standards with DRY/SOLID, testing, validation workflows"
     }
   ]

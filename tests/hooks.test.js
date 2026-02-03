@@ -19,6 +19,7 @@ const HOOKS_PATH = path.join(__dirname, '..', 'hooks', 'hooks.json');
 const PLUGIN_PATH = path.join(__dirname, '..', '.claude-plugin', 'plugin.json');
 const MARKETPLACE_PATH = path.join(__dirname, '..', '.claude-plugin', 'marketplace.json');
 const CONFIG_PATH = path.join(__dirname, '..', 'config', 'defaults.json');
+const CONFIG_SCHEMA_PATH = path.join(__dirname, '..', 'schemas', 'config.schema.json');
 
 let passed = 0;
 let failed = 0;
@@ -235,6 +236,18 @@ describe('Version Consistency', () => {
     hooks._meta?.version === plugin.version,
     `hooks version (${hooks._meta?.version}) matches plugin version (${plugin.version})`
   );
+
+  // Test: SessionStart VERSION constant matches plugin version
+  const sessionStartHook = hooks.SessionStart?.[0]?.hooks?.[0]?.command || '';
+  const versionMatch = sessionStartHook.match(/VERSION='(\d+\.\d+\.\d+)'/);
+  if (versionMatch) {
+    assert(
+      versionMatch[1] === plugin.version,
+      `SessionStart VERSION constant (${versionMatch[1]}) matches plugin version (${plugin.version})`
+    );
+  } else {
+    assert(false, 'SessionStart hook contains VERSION constant');
+  }
 });
 
 // ============================================
@@ -258,6 +271,19 @@ describe('marketplace.json', () => {
     !marketplace.name?.includes('YOUR_'),
     'name has no placeholder values'
   );
+
+  // Test: Plugins use 'source' field (not 'path')
+  const plugins = marketplace.plugins || [];
+  for (const plugin of plugins) {
+    assert(
+      plugin.source !== undefined,
+      `plugin "${plugin.name}" has 'source' field (not 'path')`
+    );
+    assert(
+      plugin.path === undefined,
+      `plugin "${plugin.name}" does not use deprecated 'path' field`
+    );
+  }
 });
 
 // ============================================
@@ -299,6 +325,55 @@ describe('config/defaults.json', () => {
 });
 
 // ============================================
+// Test: config.schema.json validity
+// ============================================
+describe('schemas/config.schema.json', () => {
+  if (!fs.existsSync(CONFIG_SCHEMA_PATH)) {
+    assert(false, 'file exists');
+    return;
+  }
+
+  let schema;
+  try {
+    const content = fs.readFileSync(CONFIG_SCHEMA_PATH, 'utf8');
+    schema = JSON.parse(content);
+    assert(true, 'is valid JSON');
+  } catch (e) {
+    assert(false, `is valid JSON: ${e.message}`);
+    return;
+  }
+
+  // Test: Has required schema properties
+  assert(
+    schema.properties?.protectedBranches,
+    'defines protectedBranches property'
+  );
+  assert(
+    schema.properties?.formatters,
+    'defines formatters property'
+  );
+  assert(
+    schema.properties?.typeCheckers,
+    'defines typeCheckers property'
+  );
+  assert(
+    schema.properties?.linters,
+    'defines linters property'
+  );
+  assert(
+    schema.properties?.dangerousPatterns,
+    'defines dangerousPatterns property'
+  );
+
+  // Test: Schema reference in config matches
+  const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+  assert(
+    config.$schema?.includes('config.schema.json'),
+    'config/defaults.json references config.schema.json'
+  );
+});
+
+// ============================================
 // Test: Required files exist
 // ============================================
 describe('Required Files', () => {
@@ -313,6 +388,9 @@ describe('Required Files', () => {
     'lib/utils.js',
     'lib/hook-runner.js',
     'requirements.txt',
+    // Schemas
+    'schemas/hooks.schema.json',
+    'schemas/config.schema.json',
     // New modular structure
     'lib/core/index.js',
     'lib/core/platform.js',
