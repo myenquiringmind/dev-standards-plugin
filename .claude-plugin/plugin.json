@@ -1,6 +1,6 @@
 {
   "name": "dev-standards",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Enforces best practice development standards including DRY/SOLID principles, comprehensive testing, type checking, linting, validation, and structured workflows across all projects.",
   "author": {
     "name": "myenquiringmind",

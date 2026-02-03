@@ -1,6 +1,6 @@
 {
   "name": "dev-standards-plugin",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Claude Code plugin for enforcing development standards",
   "main": "lib/utils.js",
   "scripts": {

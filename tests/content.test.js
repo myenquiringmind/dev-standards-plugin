@@ -126,13 +126,15 @@ test('skill has YAML frontmatter', () => {
 });
 
 test('skill frontmatter has name', () => {
-  const match = skillContent.match(/^---\n([\s\S]*?)\n---/);
+  // Handle both Unix (\n) and Windows (\r\n) line endings
+  const match = skillContent.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   assert(match, 'should have frontmatter');
   assert(match[1].includes('name:'), 'should have name field');
 });
 
 test('skill frontmatter has description', () => {
-  const match = skillContent.match(/^---\n([\s\S]*?)\n---/);
+  // Handle both Unix (\n) and Windows (\r\n) line endings
+  const match = skillContent.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   assert(match, 'should have frontmatter');
   assert(match[1].includes('description:'), 'should have description field');
 });

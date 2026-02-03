@@ -193,9 +193,13 @@ describe('plugin.json', () => {
   assert(typeof plugin.description === 'string' && plugin.description.length > 0, 'has description');
 
   // Test: No placeholder values
+  // Author can be string or object with name property
+  const authorStr = typeof plugin.author === 'string'
+    ? plugin.author
+    : plugin.author?.name || '';
   assert(
-    !plugin.author?.includes('Your Team') &&
-    !plugin.author?.includes('YOUR_'),
+    !authorStr.includes('Your Team') &&
+    !authorStr.includes('YOUR_'),
     'author has no placeholder values'
   );
   assert(
