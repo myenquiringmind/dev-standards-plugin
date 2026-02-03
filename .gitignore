@@ -29,9 +29,11 @@ npm-debug.log*
 # Python
 *.pyc
 __pycache__/
-.venv/
-venv/
-.uv/
+/.venv/
+/venv/
+/.uv/
+# Don't ignore lib/venv (plugin module)
+!lib/venv/
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/

@@ -1,11 +1,12 @@
 {
   "_meta": {
-    "version": "1.3.0",
+    "version": "1.4.0",
     "changelog": [
       "1.0.0 - Initial release: formatting, branch protection, validation",
       "1.1.0 - Added type checking, logging, lint-on-save, cross-platform support",
       "1.2.0 - Added venv-aware Python tool execution with auto-create via uv",
-      "1.3.0 - Modular lib structure, orchestrator + domain agents architecture"
+      "1.3.0 - Modular lib structure, orchestrator + domain agents architecture",
+      "1.4.0 - Git workflow integration: auto-branch, phase commits, rollback, PR finalization"
     ]
   },
 
@@ -15,11 +16,22 @@
       "hooks": [
         {
           "type": "command",
-          "command": "node -e \"const os=require('os');const fs=require('fs');const path=require('path');const{execSync}=require('child_process');const https=require('https');const logDir=path.join(os.homedir(),'.claude','logs');const cacheFile=path.join(os.homedir(),'.claude','.claude-plugin-version-cache.json');const VERSION='1.3.0';const REPO='myenquiringmind/dev-standards-plugin';try{fs.mkdirSync(logDir,{recursive:true})}catch(e){}const logFile=path.join(logDir,'session.log');const ts=new Date().toISOString();const cwd=process.cwd();try{fs.appendFileSync(logFile,'['+ts+'] SESSION_START in '+cwd+'\\n')}catch(e){}console.log('--- Project Context ---');try{const status=execSync('git status --short',{encoding:'utf8',timeout:3000}).trim();console.log(status||'Working tree clean')}catch(e){console.log('Not a git repo')};console.log('---');const todos=['TODO.md','TASKS.md'];for(const t of todos){const f=path.join(cwd,t);if(fs.existsSync(f)){try{console.log(fs.readFileSync(f,'utf8').split('\\n').slice(0,20).join('\\n'))}catch(e){}break}};let skipCheck=false;try{if(fs.existsSync(cacheFile)){const c=JSON.parse(fs.readFileSync(cacheFile,'utf8'));if(Date.now()-new Date(c.lastCheck).getTime()<86400000)skipCheck=true}}catch{}if(!skipCheck){const req=https.get('https://api.github.com/repos/'+REPO+'/releases/latest',{headers:{'User-Agent':'dev-standards-plugin'},timeout:5000},res=>{if(res.statusCode===200){let d='';res.on('data',c=>d+=c);res.on('end',()=>{try{const r=JSON.parse(d);const lv=r.tag_name?.replace(/^v/,'')||null;if(lv){try{fs.writeFileSync(cacheFile,JSON.stringify({lastCheck:ts,latestVersion:lv,currentVersion:VERSION}))}catch{}const cmp=(a,b)=>{const pa=a.split('.').map(Number),pb=b.split('.').map(Number);for(let i=0;i<3;i++){if((pa[i]||0)>(pb[i]||0))return 1;if((pa[i]||0)<(pb[i]||0))return -1}return 0};if(cmp(lv,VERSION)>0){console.error('[dev-standards] Update available: '+VERSION+' -> '+lv+' (https://github.com/'+REPO+'/releases)')}}}catch{}})}});req.on('error',()=>{});req.on('timeout',()=>req.destroy())}\"",
+          "command": "node -e \"const os=require('os');const fs=require('fs');const path=require('path');const{execSync}=require('child_process');const https=require('https');const logDir=path.join(os.homedir(),'.claude','logs');const cacheFile=path.join(os.homedir(),'.claude','.claude-plugin-version-cache.json');const VERSION='1.4.0';const REPO='myenquiringmind/dev-standards-plugin';try{fs.mkdirSync(logDir,{recursive:true})}catch(e){}const logFile=path.join(logDir,'session.log');const ts=new Date().toISOString();const cwd=process.cwd();try{fs.appendFileSync(logFile,'['+ts+'] SESSION_START in '+cwd+'\\n')}catch(e){}console.log('--- Project Context ---');try{const status=execSync('git status --short',{encoding:'utf8',timeout:3000}).trim();console.log(status||'Working tree clean')}catch(e){console.log('Not a git repo')};console.log('---');const todos=['TODO.md','TASKS.md'];for(const t of todos){const f=path.join(cwd,t);if(fs.existsSync(f)){try{console.log(fs.readFileSync(f,'utf8').split('\\n').slice(0,20).join('\\n'))}catch(e){}break}};let skipCheck=false;try{if(fs.existsSync(cacheFile)){const c=JSON.parse(fs.readFileSync(cacheFile,'utf8'));if(Date.now()-new Date(c.lastCheck).getTime()<86400000)skipCheck=true}}catch{}if(!skipCheck){const req=https.get('https://api.github.com/repos/'+REPO+'/releases/latest',{headers:{'User-Agent':'dev-standards-plugin'},timeout:5000},res=>{if(res.statusCode===200){let d='';res.on('data',c=>d+=c);res.on('end',()=>{try{const r=JSON.parse(d);const lv=r.tag_name?.replace(/^v/,'')||null;if(lv){try{fs.writeFileSync(cacheFile,JSON.stringify({lastCheck:ts,latestVersion:lv,currentVersion:VERSION}))}catch{}const cmp=(a,b)=>{const pa=a.split('.').map(Number),pb=b.split('.').map(Number);for(let i=0;i<3;i++){if((pa[i]||0)>(pb[i]||0))return 1;if((pa[i]||0)<(pb[i]||0))return -1}return 0};if(cmp(lv,VERSION)>0){console.error('[dev-standards] Update available: '+VERSION+' -> '+lv+' (https://github.com/'+REPO+'/releases)')}}}catch{}})}});req.on('error',()=>{});req.on('timeout',()=>req.destroy())}\"",
           "timeout": 10
         }
       ],
       "description": "Load project context, log session start, and check for updates"
+    },
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node -e \"const fs=require('fs');const path=require('path');const{execSync}=require('child_process');const stateFile=path.join(process.cwd(),'tmp','.orchestrator-state.json');try{const branch=execSync('git branch --show-current',{encoding:'utf8',timeout:3000}).trim();const protected=['main','master','production','develop','staging','release'];if(protected.includes(branch)){console.error('[Git] Warning: On protected branch ('+branch+'). Create feature branch before making changes.')};if(fs.existsSync(stateFile)){const data=JSON.parse(fs.readFileSync(stateFile,'utf8'));if(data.orchestrator?.git?.workflowBranch&&branch!==data.orchestrator.git.workflowBranch){console.error('[Orchestrator] Warning: Active workflow on branch '+data.orchestrator.git.workflowBranch+' but currently on '+branch+'. Run: git checkout '+data.orchestrator.git.workflowBranch)}}}catch{}\"",
+          "timeout": 5
+        }
+      ],
+      "description": "Warn about branch state and orchestrator workflow on session start"
     }
   ],
 
@@ -59,6 +71,17 @@
         }
       ],
       "description": "Block edits when orchestrator checkpoint is pending"
+    },
+    {
+      "matcher": "Edit|Write|MultiEdit",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node -e \"const fs=require('fs');const path=require('path');const{execSync}=require('child_process');const stateFile=path.join(process.cwd(),'tmp','.orchestrator-state.json');try{if(fs.existsSync(stateFile)){const data=JSON.parse(fs.readFileSync(stateFile,'utf8'));const gitState=data.orchestrator?.git;if(gitState&&gitState.enabled&&gitState.workflowBranch){const currentBranch=execSync('git branch --show-current',{encoding:'utf8',timeout:3000}).trim();if(currentBranch!==gitState.workflowBranch){console.log(JSON.stringify({decision:'block',reason:'Not on orchestrator workflow branch. Current: '+currentBranch+', Expected: '+gitState.workflowBranch+'. Run: git checkout '+gitState.workflowBranch}));process.exit(0)}}}}catch(e){}let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(d))\"",
+          "timeout": 5
+        }
+      ],
+      "description": "Ensure edits happen on orchestrator workflow branch"
     },
     {
       "matcher": "Bash",
@@ -128,6 +151,17 @@
         }
       ],
       "description": "Warn when uncommitted changes exceed threshold"
+    },
+    {
+      "matcher": "Edit|Write|MultiEdit",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node -e \"const fs=require('fs');const path=require('path');const stateFile=path.join(process.cwd(),'tmp','.orchestrator-state.json');let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{if(fs.existsSync(stateFile)){const state=JSON.parse(fs.readFileSync(stateFile,'utf8'));if(state.orchestrator?.git?.enabled){const input=JSON.parse(d||'{}');const file=input.tool_input?.file_path||input.tool_input?.files?.[0]?.file_path;if(file){if(!state.orchestrator.changedFiles)state.orchestrator.changedFiles=[];if(!state.orchestrator.changedFiles.includes(file)){state.orchestrator.changedFiles.push(file);fs.writeFileSync(stateFile,JSON.stringify(state,null,2))}}}}}catch{}console.log(d)})\"",
+          "timeout": 5
+        }
+      ],
+      "description": "Track files changed during orchestrator workflow"
     },
     {
       "matcher": "*",
