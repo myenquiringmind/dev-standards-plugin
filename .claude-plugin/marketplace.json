@@ -1,10 +1,14 @@
 {
   "name": "myenquiringmind",
   "description": "Development standards Claude Code plugins and tools",
+  "owner": {
+    "name": "myenquiringmind",
+    "email": "myenquiringmind@gmail.com"
+  },
   "plugins": [
     {
       "name": "dev-standards",
-      "source": ".",
+      "source": "./",
       "description": "Core development standards with DRY/SOLID, testing, validation workflows"
     }
   ]
