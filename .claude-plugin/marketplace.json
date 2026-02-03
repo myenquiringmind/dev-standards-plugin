@@ -1,4 +1,5 @@
 {
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "myenquiringmind",
   "description": "Development standards Claude Code plugins and tools",
   "owner": {
@@ -8,8 +9,13 @@
   "plugins": [
     {
       "name": "dev-standards",
-      "source": ".",
-      "description": "Core development standards with DRY/SOLID, testing, validation workflows"
+      "description": "Core development standards with DRY/SOLID, testing, validation workflows",
+      "version": "1.3.0",
+      "author": {
+        "name": "myenquiringmind",
+        "email": "myenquiringmind@gmail.com"
+      },
+      "source": "./"
     }
   ]
 }
