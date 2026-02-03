@@ -8,8 +8,5 @@
   },
   "repository": "https://github.com/myenquiringmind/dev-standards-plugin",
   "license": "MIT",
-  "keywords": ["development", "standards", "linting", "testing", "validation"],
-  "commands": "./commands/",
-  "agents": "./agents/",
-  "skills": "./skills/"
+  "keywords": ["development", "standards", "linting", "testing", "validation"]
 }
