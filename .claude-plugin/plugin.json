@@ -2,43 +2,14 @@
   "name": "dev-standards",
   "version": "1.3.0",
   "description": "Enforces best practice development standards including DRY/SOLID principles, comprehensive testing, type checking, linting, validation, and structured workflows across all projects.",
-  "author": "Dev Standards Team",
+  "author": {
+    "name": "myenquiringmind",
+    "email": "myenquiringmind@gmail.com"
+  },
   "repository": "https://github.com/myenquiringmind/dev-standards-plugin",
-  "components": {
-    "agents": [
-      "agents/standards-orchestrator.md",
-      "agents/logging-standards.md",
-      "agents/error-standards.md",
-      "agents/type-standards.md",
-      "agents/lint-standards.md",
-      "agents/test-standards.md",
-      "agents/validation-standards.md",
-      "agents/git-standards.md",
-      "agents/housekeeping-standards.md",
-      "agents/naming-standards.md",
-      "agents/investigator.md",
-      "agents/code-reviewer.md",
-      "agents/doc-writer.md"
-    ],
-    "commands": [
-      "commands/plan.md",
-      "commands/fix.md",
-      "commands/validate.md",
-      "commands/review.md",
-      "commands/setup.md",
-      "commands/typecheck.md",
-      "commands/logs.md"
-    ],
-    "skills": [
-      "skills/dev-workflow",
-      "skills/orchestrate"
-    ]
-  },
-  "hooks": "hooks/hooks.json",
-  "config": "config/defaults.json",
-  "scripts": {
-    "test": "node tests/hooks.test.js",
-    "validate": "node scripts/validate-hooks.js"
-  },
-  "postInstall": "echo 'Dev Standards plugin installed. Run /dev-standards:setup to initialize project.'"
+  "license": "MIT",
+  "keywords": ["development", "standards", "linting", "testing", "validation"],
+  "commands": "./commands/",
+  "agents": "./agents/",
+  "skills": "./skills/"
 }
