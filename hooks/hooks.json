@@ -128,6 +128,17 @@
         }
       ],
       "description": "Warn when uncommitted changes exceed threshold"
+    },
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node -e \"const fs=require('fs');const path=require('path');const cwd=process.cwd();const tmpDir=path.join(cwd,'tmp');try{const files=fs.readdirSync(cwd).filter(f=>f.startsWith('tmpclaude'));if(files.length>0){fs.mkdirSync(tmpDir,{recursive:true});for(const f of files){try{fs.renameSync(path.join(cwd,f),path.join(tmpDir,f))}catch{try{fs.unlinkSync(path.join(cwd,f))}catch{}}}}}catch{}let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(d))\"",
+          "timeout": 3
+        }
+      ],
+      "description": "Clean up tmpclaude-* temp files from root to tmp/"
     }
   ],
 
@@ -163,6 +174,17 @@
         }
       ],
       "description": "Log task completion"
+    },
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node -e \"const fs=require('fs');const path=require('path');const cwd=process.cwd();const tmpDir=path.join(cwd,'tmp');try{const files=fs.readdirSync(cwd).filter(f=>f.startsWith('tmpclaude'));if(files.length>0){fs.mkdirSync(tmpDir,{recursive:true});for(const f of files){try{fs.renameSync(path.join(cwd,f),path.join(tmpDir,f))}catch{try{fs.unlinkSync(path.join(cwd,f))}catch{}}}}}catch{}\"",
+          "timeout": 3
+        }
+      ],
+      "description": "Clean up tmpclaude-* temp files from root to tmp/"
     }
   ],
 
