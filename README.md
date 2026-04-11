@@ -33,12 +33,29 @@ Enforce consistent development standards across all your projects with automated
 - All Python hooks run through the project's venv
 
 ### Specialized Agents
-| Agent | Purpose | Invoke |
-|-------|---------|--------|
-| `@investigator` | Deep root cause analysis | Complex bugs |
-| `@code-reviewer` | Quality & security review | Before commits |
-| `@test-writer` | Comprehensive test coverage | New features |
-| `@doc-writer` | Documentation updates | API changes |
+
+#### Core Agents
+| Agent | Purpose | When to Use |
+|-------|---------|-------------|
+| `@investigator` | Deep root cause analysis | Complex bugs, unknown failures |
+| `@code-reviewer` | Quality & security review | Before commits, PR reviews |
+| `@doc-writer` | Documentation updates | API changes, new features |
+
+#### Domain Standards Agents (v1.3.0+)
+| Agent | Domain | Expertise |
+|-------|--------|-----------|
+| `@standards-orchestrator` | Workflow | Coordinates domain agents through phases |
+| `@logging-standards` | Logging | Structured logging, log levels, debug mode |
+| `@error-standards` | Errors | Exception handling, error types, recovery |
+| `@type-standards` | Types | JSDoc types, TypeScript, mypy |
+| `@lint-standards` | Linting | ESLint, ruff, code style, auto-fix |
+| `@test-standards` | Testing | Unit/integration tests, coverage, mocking |
+| `@validation-standards` | Validation | Input validation, sanitization, security |
+| `@git-standards` | Git | Conventional commits, branch naming, .gitignore |
+| `@housekeeping-standards` | Hygiene | Project layout, temp dirs, cleanup |
+| `@naming-standards` | Naming | File/function/class naming conventions |
+
+> **Note**: `@test-writer` was merged into `@test-standards` in v1.3.0
 
 ### Workflow Commands
 | Command | Purpose |
@@ -55,6 +72,56 @@ Enforce consistent development standards across all your projects with automated
 | Skill | Triggers On |
 |-------|-------------|
 | `dev-workflow` | Any code task - features, fixes, refactoring |
+| `orchestrate` | Standards enforcement via `/orchestrate domain=<domain>` |
+
+## Orchestrator Workflow (v1.3.0+)
+
+The orchestrator provides systematic standards enforcement with checkpoints and handoffs.
+
+### Invocation
+
+```bash
+/orchestrate domain=git           # Single domain
+/orchestrate domain=all           # All domains (dependency-sorted)
+/orchestrate domain=logging phase=design  # Start from specific phase
+```
+
+### Workflow Phases
+
+```
+Design → Validate Design → Build → Test → Validate
+```
+
+| Phase | Purpose |
+|-------|---------|
+| **Design** | Analyze current state, propose improvements |
+| **Validate Design** | Review proposal for completeness and conflicts |
+| **Build** | Implement the approved design |
+| **Test** | Write and run tests for implementation |
+| **Validate** | Final verification that everything works |
+
+### Checkpoint Protocol
+
+After **design** and **build** phases, execution pauses for user approval:
+
+- **Approve**: Type `approve`, `yes`, `proceed`, or `lgtm` to continue
+- **Modify**: Provide feedback to re-run the current phase
+- **Reject**: Type `reject` or `rollback` to stop execution
+
+### Git Integration (v1.4.0)
+
+When the orchestrator runs:
+
+1. **Branch Creation**: Auto-creates `feat/orchestrator-<domain>-<timestamp>`
+2. **Phase Commits**: Each phase completion triggers a commit
+3. **Rollback Points**: Checkpoints create rollback commits
+4. **PR Finalization**: Option to create PR on completion
+
+```bash
+/orchestrate domain=git gitMode=auto     # Default - automatic commits
+/orchestrate domain=git gitMode=manual   # Manual commit control
+/orchestrate domain=git gitMode=disabled # No git operations
+```
 
 ## Installation
 
@@ -158,7 +225,7 @@ Claude:
 7. Creates /plan with TLDR
 8. Implements fix on feature branch
 9. [PostToolUse hook auto-formats]
-10. Delegates to @test-writer for coverage
+10. Delegates to @test-standards for coverage
 11. Runs /validate
 12. [Stop hook verifies all checks pass]
 13. Commits: "fix(auth): await token refresh before timeout check"
@@ -172,10 +239,41 @@ You: "Add rate limiting to the API"
 Claude:
 1. /plan with TLDR + detailed steps
 2. Implements incrementally
-3. @test-writer creates test coverage
+3. @test-standards creates test coverage
 4. @code-reviewer checks for issues
 5. /validate ensures everything works
 6. Commits with feat(api): add rate limiting
+```
+
+### Example: Using the Orchestrator
+
+```
+You: "/orchestrate domain=git"
+
+Claude:
+1. [Creates branch feat/orchestrator-git-1738600000]
+2. [Enters DESIGN phase]
+3. Analyzes current git standards...
+
+## Checkpoint: Design Complete
+**Agent**: @git-standards
+**Status**: Awaiting approval
+
+### Changes Proposed
+- Add conventional commit validation
+- Update .gitignore with security patterns
+
+User Action Required:
+- Approve and proceed
+- Request modifications
+- Reject and rollback
+
+You: "approve"
+
+Claude:
+4. [Commits design, advances to validate-design]
+5. [Continues through Build → Test → Validate]
+6. [Final commit and optional PR creation]
 ```
 
 ## Customization
@@ -252,47 +350,45 @@ You are specialized for [purpose].
 ```
 dev-standards-plugin/
 ├── .claude-plugin/
-│   ├── plugin.json          # Plugin manifest (v1.2.0)
+│   ├── plugin.json          # Plugin manifest (v1.4.0)
 │   └── marketplace.json     # Marketplace catalog
 ├── config/
-│   └── defaults.json        # Configurable defaults
+│   └── defaults.json        # Protected branches, formatters, linters
 ├── hooks/
-│   └── hooks.json           # Automatic enforcement (format, type, lint, log)
+│   └── hooks.json           # Automatic enforcement (9 hook types)
 ├── lib/
-│   ├── utils.js             # Shared utilities (venv, git, tools)
-│   ├── venv.js              # Venv-specific utilities
-│   └── hook-runner.js       # Unified hook entry point
+│   ├── core/                # Platform detection, config, execution
+│   │   ├── index.js, platform.js, config.js, exec.js
+│   ├── venv/                # Virtual environment management
+│   ├── git/                 # Git operations (branch, commit, PR)
+│   ├── logging/             # Session logging, debug support
+│   ├── validation/          # Input validation, security
+│   ├── tools/               # Formatter/linter/typechecker execution
+│   ├── version/             # Version checking, cache management
+│   ├── errors/              # Standardized error handling
+│   ├── orchestrator/        # Orchestrator runtime (v1.3.0+)
+│   │   ├── index.js         # State machine, phase management
+│   │   ├── checkpoint.js    # User approval protocol
+│   │   ├── handoff.js       # Agent handoff tracking
+│   │   ├── cli.js           # CLI commands
+│   │   └── parser.js        # Parameter parsing
+│   ├── hook-runner.js       # Unified hook entry point
+│   └── utils.js             # Backward-compatible exports
 ├── agents/
-│   ├── investigator.md      # Root cause analysis
-│   ├── code-reviewer.md     # Quality review
-│   ├── test-writer.md       # Test creation
-│   └── doc-writer.md        # Documentation
+│   ├── standards-orchestrator.md  # Workflow coordinator
+│   ├── investigator.md, code-reviewer.md, doc-writer.md
+│   ├── logging-standards.md, error-standards.md
+│   ├── type-standards.md, lint-standards.md, test-standards.md
+│   ├── validation-standards.md, git-standards.md
+│   ├── housekeeping-standards.md, naming-standards.md
 ├── commands/
-│   ├── plan.md              # /plan
-│   ├── fix.md               # /fix
-│   ├── validate.md          # /validate
-│   ├── review.md            # /review
-│   ├── setup.md             # /setup
-│   ├── typecheck.md         # /typecheck
-│   └── logs.md              # /logs
+│   ├── plan.md, fix.md, validate.md, review.md
+│   ├── setup.md, typecheck.md, logs.md
 ├── skills/
-│   └── dev-workflow/
-│       └── SKILL.md         # Core workflow skill
-├── templates/
-│   └── CLAUDE.md.template   # Project starter template
-├── tests/
-│   ├── hooks.test.js        # Structure & schema tests (50 tests)
-│   ├── test-venv.js         # Venv utilities tests (25 tests)
-│   ├── test-content.js      # Content validation tests (46 tests)
-│   └── test-hooks-live.js   # Live functional tests (19 tests)
-├── schemas/
-│   └── hooks.schema.json    # JSON Schema for validation
-├── scripts/
-│   └── validate-hooks.js    # Hook validation script
-├── CHANGELOG.md             # Version history
-├── CONTRIBUTING.md          # Maintenance guide
-├── LICENSE                  # MIT License
-└── README.md
+│   ├── dev-workflow/SKILL.md
+│   └── orchestrate/SKILL.md      # Orchestrator skill (v1.3.0+)
+├── templates/, tests/, schemas/, scripts/
+├── CHANGELOG.md, CONTRIBUTING.md, LICENSE, README.md
 ```
 
 ## Testing the Plugin
@@ -318,7 +414,7 @@ The plugin automatically checks for updates on session start:
 - Queries GitHub releases (non-blocking, cached for 24 hours)
 - If a newer version is available, displays a notice:
   ```
-  [dev-standards] Update available: 1.2.0 -> 1.3.0 (https://github.com/myenquiringmind/dev-standards-plugin/releases)
+  [dev-standards] Update available: 1.3.0 -> 1.4.0 (https://github.com/myenquiringmind/dev-standards-plugin/releases)
   ```
 - Never blocks or interrupts your workflow
 
@@ -337,6 +433,7 @@ git pull origin main
 5. **Easy Distribution**: Plugin system makes it one command to install anywhere
 6. **Cross-Platform**: Works on Windows, macOS, and Linux
 7. **Self-Updating Awareness**: Notifies you when updates are available
+8. **Systematic Standards**: Orchestrator ensures all quality domains are addressed with checkpoints
 
 ## Contributing
 
