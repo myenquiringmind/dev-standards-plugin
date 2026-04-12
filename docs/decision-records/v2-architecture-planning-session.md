@@ -3304,3 +3304,233 @@ Plus the doc-size enforcer from §G.6: `post_edit_doc_size.py` (17 hooks total).
 - Nothing pushed, fully reversible
 
 Next action after approval: execute the retroactive fix and ship Phase 0.
+
+---
+
+# Appendix I — Feature Pack Modularization + UX
+
+**Amendment status:** proposed 2026-04-13, after critical assessment of the plugin's monolithic architecture. Does not change architectural principles, R/R/W tiering, closed-loop design, or bootstrap-first sequencing. **Changes:** the delivery model (one plugin with modular feature packs, not a monolith), the UX (progressive disclosure, setup wizard with pack selection, feature discovery), and the internal organization (pack-based directory boundaries).
+
+## I.1 The Monolith Problem
+
+Official Anthropic plugins follow a "many small, single-purpose" pattern: 33 plugins, each narrowly scoped (largest has 6 agents). Our 156-agent, 28-command plugin is a **26x outlier**. This creates: UX overwhelm (28 commands in the `/` menu), adoption friction (a Python dev gets 54 pattern agents they didn't ask for), and ecosystem mismatch (every other plugin is narrow).
+
+The proposed 156 agents, 42 hooks, and 28 commands are architecturally sound — the concern is **delivery**, not design.
+
+## I.2 Feature Pack Model
+
+The plugin ships as **one installable unit** with internally modular **feature packs**. Each pack is a logical group of agents, hooks, commands, and skills that can be activated or deactivated via `userConfig` at install time or via `/setup` at any time.
+
+**Inactive packs:** agents set to `disable-model-invocation: true`, commands set to `user-invocable: false`, hooks check `_hook_shared.is_pack_active(pack_name)` before firing non-core logic. Inactive packs consume zero context and zero token budget.
+
+### The 12 packs
+
+| Pack | Agents | Hooks (non-core) | Commands | Default activation |
+|---|---|---|---|---|
+| **core** | 24 (meta, validation, closed-loop, session planner, summarizer, transcript extractor, setup wizard, project classifier) | 17 (bootstrap hooks — always on) | `/validate`, `/handoff`, `/setup`, `/status`, `/logs` | **Always on** |
+| **python** | 9 (py-*) | 2 (py-specific lint/format rules in existing hooks) | — | **Auto-on** if Python detected |
+| **frontend** | 7 (fe-*) | 2 (fe-specific lint/format) | — | **Auto-on** if JS/TS detected |
+| **database** | 7 (db-* + brownfield scanners) | — | — | **Auto-on** if migrations detected |
+| **interface** | 6 (api-*) | — | — | **Auto-on** if multiple languages |
+| **tdd** | — (composes stack agents) | — | `/scaffold`, `/tdd`, `/fix`, `/debug` | **On by default** |
+| **design** | 11 (design + discover + research + gap-analyst) | — | `/design`, `/plan`, `/discover`, `/research`, `/scan` | Opt-in |
+| **patterns** | 65 (54 pattern + 8 antipattern + 3 refactor) | — | `/pattern`, `/pattern-scan`, `/refactor` | Opt-in |
+| **security** | 6 (security-*) | 3 (secret scan, gitignore audit, SAST) | `/security-scan` | **On by default** |
+| **document** | 4 (doc-*) | — | `/document` | Opt-in |
+| **operate** | 10 (operate + maintain + deploy) | — | `/incident`, `/maintain`, `/release` | Opt-in |
+| **codebase-scanners** | 5 (codebase-*) | — | — | **Auto-on** if brownfield detected |
+
+### Activation profiles
+
+Typical user sees only their active packs:
+
+| User profile | Active packs | Agent count |
+|---|---|---|
+| Python developer (TDD + security) | core + python + tdd + security | **39** |
+| Frontend developer | core + frontend + tdd + security | **37** |
+| Fullstack + database | core + python + frontend + database + interface + tdd + security | **66** |
+| Architecture-focused | core + design + patterns + codebase-scanners + security | **101** |
+| Everything | all 12 packs | **156** |
+
+A Python developer's session loads 25% of the plugin. The rest is dormant.
+
+### `userConfig` extension
+
+```json
+{
+  "userConfig": {
+    "activePacks": {
+      "type": "array",
+      "items": { "enum": ["python", "frontend", "database", "interface", "tdd", "design", "patterns", "security", "document", "operate", "codebase-scanners"] },
+      "default": ["tdd", "security"]
+    }
+  }
+}
+```
+
+`core` is not in the list because it's always on. Language-detected packs (python, frontend, database, interface, codebase-scanners) auto-activate based on `discover-project-state-classifier` output. User-selected packs (`tdd`, `security`, `design`, `patterns`, `document`, `operate`) come from `activePacks`.
+
+### Internal implementation
+
+1. `_hook_shared.py` exposes `is_pack_active(pack_name: str) -> bool` reading from `.dsp-config.json`
+2. Non-core hooks check `is_pack_active()` before processing — if inactive, exit 0 immediately (no-op, no block)
+3. Agent frontmatter gains a `pack:` field — the session planner reads this to determine which agents to compose
+4. Command frontmatter gains a `pack:` field — commands check `is_pack_active()` at invocation; if inactive, respond with "Enable the {pack} pack via /setup to use this command"
+5. Skill SKILL.md gains a `pack:` field — the plugin manifest marks inactive skills with `disable-model-invocation: true` at session start based on `.dsp-config.json`
+
+All changes are additive — they don't break any existing agent/hook/command code.
+
+## I.3 Why One Plugin, Not Many
+
+CC doesn't support plugin dependencies. Splitting into `dsp-core`, `dsp-python`, etc. would mean:
+
+- Shared code (`_hook_shared.py`, `_os_safe.py`, `_session_state_common.py`, `stamp_validation.py`) duplicated in every sub-plugin
+- No guarantee that `dsp-core` v1.2 works with `dsp-python` v1.1 — version skew
+- User must install 3-5 plugins instead of one
+- Graph registry would be split across plugins with no cross-plugin validation
+
+**Design for eventual split:** each pack lives in its own directory subtree inside the single plugin repo. No cross-pack imports (except via `_hook_shared.py` shared modules). If CC later adds plugin dependencies, we publish sub-plugins from the monorepo; each sub-plugin includes a copy of shared modules at the version it was built against.
+
+## I.4 UX Improvements
+
+### I.4.1 First-run wizard revision
+
+The existing `discover-setup-wizard` (Appendix H §H.2) gains a pack selection step:
+
+1. **Detect** languages, frameworks, database presence, production markers (as before)
+2. **Recommend** packs based on detection: "I detected Python + PostgreSQL. Recommended: core + python + database + tdd + security."
+3. **User selects** — checkboxes, 3-5 clicks. Can add design/patterns/operate later via `/setup --packs`.
+4. **Write** `.dsp-config.json` with selections. Done.
+
+### I.4.2 Progressive command disclosure
+
+Only commands from active packs appear in the `/` menu. This is controlled by the `user-invocable:` field in command frontmatter:
+
+- At session start, `session_start.py` reads `.dsp-config.json` and sets a session env var `DSP_ACTIVE_PACKS`
+- Each command's `user-invocable:` field is dynamically toggled based on `DSP_ACTIVE_PACKS`
+- Inactive commands respond helpfully: "The design pack is not active. Run `/setup --packs add design` to enable it."
+
+A Python dev sees 5-8 commands in `/` instead of 28.
+
+### I.4.3 Feature discovery
+
+Two mechanisms for suggesting packs the user doesn't have but might want:
+
+1. **`CwdChanged` hook** — when the user navigates into a directory containing migration files and the database pack is inactive, emit a system message: "You're working with database migrations. Enable the database pack for schema review and migration safety? Run `/setup --packs add database`."
+
+2. **`FileChanged` hook** — when new file types appear that match an inactive pack's profile (e.g., first `.tsx` file created while frontend pack is off), suggest enabling it.
+
+These are suggestions, not blocks. The user can ignore them.
+
+### I.4.4 Helpful error messages
+
+When the validation gate blocks a commit, the error message is structured:
+
+```
+VALIDATION BLOCKED: py-security-reviewer
+
+  Issue:  Hardcoded API key detected
+  File:   hooks/example.py:42
+  Detail: String matches AWS access key pattern (AKIA...)
+  Fix:    Move the key to an environment variable or .env file
+  Bypass: Commit with [WIP] prefix for emergency handoff only
+
+  See: docs/architecture/principles/security.md
+```
+
+Not "exit 2" with an opaque error. Every blocking verdict includes: what failed, where, why, how to fix, how to bypass (with the moral hazard noted), and a link to the relevant principle.
+
+### I.4.5 Dashboard
+
+`/status` shows a concise overview:
+
+```
+dev-standards-plugin v2.0.0-dev
+Active packs: core, python, tdd, security
+Session: 42K / ~125K tokens (33% of hard cut)
+Phase: develop
+Stamps: .validation_stamp (valid, 8 min remaining)
+Recent: py-solid-dry-reviewer passed, py-doc-checker auto-fixed 2 files
+```
+
+Short, actionable, fits in one screen.
+
+## I.5 Schema Additions
+
+### agent-frontmatter.schema.json
+
+Add `pack` field:
+
+```json
+"pack": {
+  "type": "string",
+  "enum": ["core", "python", "frontend", "database", "interface", "tdd", "design", "patterns", "security", "document", "operate", "codebase-scanners"],
+  "description": "Feature pack this agent belongs to. Core agents are always active; other packs activate via userConfig or language detection."
+}
+```
+
+### New schema: dsp-config.schema.json (Phase 1)
+
+Validates `.dsp-config.json` written by the setup wizard:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "activePacks": { "type": "array", "items": { "enum": [...] } },
+    "detectedLanguages": { "type": "array", "items": { "type": "string" } },
+    "projectState": { "enum": ["greenfield", "growing-green", "brownfield"] },
+    "strictnessOverride": { "enum": ["strict", "balanced", "advisory"] },
+    "telemetryOptIn": { "type": "boolean", "default": false }
+  }
+}
+```
+
+## I.6 Implementation Impact
+
+### Phase 0 (current branch, not yet pushed)
+
+- **`schemas/agent-frontmatter.schema.json`** — add `pack` field to the schema (small edit, before push)
+- **`docs/architecture/components/agents.md`** — add pack column to the category table
+- **`docs/architecture/principles/plugin-vs-project.md`** — add section on feature packs
+- **No new files needed** — the pack concept is a metadata addition, not a structural change
+
+### Phase 1 (bootstrap)
+
+- **`_hook_shared.py`** gains `is_pack_active()` function
+- **`.dsp-config.json` schema** added to `schemas/`
+- **`discover-setup-wizard`** gains pack selection step
+- **`session_start.py`** reads `.dsp-config.json` and sets active-pack session state
+- No other bootstrap changes — the 17 core hooks and 10 core agents are all in the `core` pack
+
+### Phase 2+ (as packs are built)
+
+- Every new agent/command/skill declares its `pack:` in frontmatter
+- Commands check `is_pack_active()` at invocation
+- `meta-agent-arch-doc-reviewer` validates that `pack:` is declared and consistent with the agent's category
+
+### Revised totals
+
+No change to agent/hook/command/schema counts. The pack model is a **metadata and activation layer** on top of the existing architecture. It adds:
+
+- 1 new frontmatter field (`pack:`) on all 156 agents, 28 commands, and 26 skills
+- 1 new schema (`dsp-config.schema.json`)
+- 1 new function in `_hook_shared.py` (`is_pack_active()`)
+- 1 new step in the setup wizard (pack selection)
+- Helpful error messages in commands (already planned, just formalized)
+
+## I.7 What Appendix I Commits To
+
+- **Feature pack model:** 12 logical packs within one plugin, activated by userConfig + language detection
+- **Inactive packs consume zero context** — agents `disable-model-invocation: true`, commands `user-invocable: false`, hooks no-op
+- **Typical user loads 25-40% of the plugin**, not 100%
+- **First-run wizard selects packs in 3-5 clicks** based on detected languages + user preference
+- **Progressive command disclosure** — only active pack commands in `/` menu; inactive commands respond helpfully
+- **Feature discovery** — `CwdChanged` / `FileChanged` hooks suggest relevant inactive packs
+- **Helpful structured error messages** on every validation block
+- **`/status` dashboard** showing active packs, context budget, stamp state, recent activity
+- **`pack:` field in agent/command/skill frontmatter** — validated by schema, enforced by meta-agent
+- **Design for eventual split** — clean pack boundaries, no cross-pack imports, ready to publish as sub-plugins if CC adds plugin dependencies
+- **No change to component counts, principles, or timeline** — this is a delivery/activation layer, not a scope change
+
+Phase 0 impact: add `pack` field to `agent-frontmatter.schema.json` + minor doc updates before pushing the PR. Small edit, same branch.

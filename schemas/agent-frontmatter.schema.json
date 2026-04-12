@@ -80,6 +80,11 @@
       "default": false,
       "description": "If true, this agent file overlays a plugin-canonical base agent of the same name."
     },
+    "pack": {
+      "type": "string",
+      "enum": ["core", "python", "frontend", "database", "interface", "tdd", "design", "patterns", "security", "document", "operate", "codebase-scanners"],
+      "description": "Feature pack this agent belongs to. Core is always active; language packs auto-activate on detection; others are user-selected via /setup. Inactive packs have agents set to disable-model-invocation: true."
+    },
     "tier": {
       "type": "string",
       "enum": ["read", "reason", "write", "read-reason-write"],
