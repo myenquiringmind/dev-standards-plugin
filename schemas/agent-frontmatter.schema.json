@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-standards-plugin/schemas/agent-frontmatter.schema.json",
+  "title": "Agent Markdown Frontmatter",
+  "description": "Validates the YAML frontmatter of agent markdown files in agents/**/*.md. Consumed by meta-agent-scaffolder at creation and meta-agent-arch-doc-reviewer at validate time. Name pattern enforces the Primitive Selection Framework scope prefix convention.",
+  "type": "object",
+  "required": ["name", "description", "tools", "model", "memory", "maxTurns"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^(py|fe|db|api|pattern|antipattern|design|discover|research|doc|meta|validation|refactor|operate|maintain|deploy|security|testing|interop|bg|codebase|closed-loop)-[a-z0-9][a-z0-9-]*$",
+      "description": "Kebab-case name with a framework scope prefix. Enforces PSF category discipline."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "description": "One-line description used for graph registry and skill auto-invocation matching."
+    },
+    "tools": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Explicit tool allowlist. Read-only agents list Read, Bash, Glob, Grep only."
+    },
+    "disallowedTools": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true,
+      "description": "Tool blocklist. Belt-and-braces with tools allowlist; always contains Edit/Write/WebFetch for blocking reviewers."
+    },
+    "model": {
+      "type": "string",
+      "enum": ["opus", "sonnet", "haiku"]
+    },
+    "effort": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "max"],
+      "description": "Reasoning effort level. Only valid with model=opus (enforced by conditional)."
+    },
+    "memory": {
+      "type": "string",
+      "enum": ["project", "local", "none"],
+      "description": "Memory tier the agent participates in."
+    },
+    "maxTurns": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 50
+    },
+    "skills": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true,
+      "description": "Skills preloaded into the subagent at startup."
+    },
+    "isolation": {
+      "type": "string",
+      "const": "worktree",
+      "description": "Only valid value is 'worktree'. Required for all auto-fixer agents that edit code."
+    },
+    "background": {
+      "type": "boolean",
+      "description": "If true, runs as a non-blocking background agent."
+    },
+    "color": {
+      "type": "string",
+      "description": "Optional UI hint."
+    },
+    "scope": {
+      "type": "string",
+      "enum": ["core", "profile-scoped"],
+      "default": "core",
+      "description": "Whether the agent is always active or only when a matching language profile is present."
+    },
+    "overlay": {
+      "type": "boolean",
+      "default": false,
+      "description": "If true, this agent file overlays a plugin-canonical base agent of the same name."
+    },
+    "tier": {
+      "type": "string",
+      "enum": ["read", "reason", "write", "read-reason-write"],
+      "description": "R/R/W specialization tier. 'read' = scanners/profilers/extractors (forbidden from Edit/Write/NotebookEdit); 'reason' = analysts/planners/gap-analyzers (also forbidden from Edit/Write/NotebookEdit); 'write' = scaffolders/reviewers/auto-fixers (full tool access). 'read-reason-write' is a sanctioned exception for small pipeline agents where splitting would be over-engineering (e.g. closed-loop-transcript-todo-extractor). All agents should declare a tier; retrofitting existing agents happens in Phase 5."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "effort": { "const": "max" } },
+        "required": ["effort"]
+      },
+      "then": {
+        "properties": { "model": { "const": "opus" } }
+      }
+    },
+    {
+      "if": {
+        "properties": { "isolation": { "const": "worktree" } },
+        "required": ["isolation"]
+      },
+      "then": {
+        "properties": {
+          "tools": {
+            "type": "array",
+            "contains": {
+              "type": "string",
+              "enum": ["Edit", "Write"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "tier": { "const": "read" } },
+        "required": ["tier"]
+      },
+      "then": {
+        "properties": {
+          "tools": {
+            "not": {
+              "contains": {
+                "type": "string",
+                "enum": ["Edit", "Write", "NotebookEdit"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "tier": { "const": "reason" } },
+        "required": ["tier"]
+      },
+      "then": {
+        "properties": {
+          "tools": {
+            "not": {
+              "contains": {
+                "type": "string",
+                "enum": ["Edit", "Write", "NotebookEdit"]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

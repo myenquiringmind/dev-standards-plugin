@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-standards-plugin/schemas/profile.schema.json",
+  "title": "Language Profile",
+  "description": "Validates language profile files in config/profiles/*.json. Consumed by detect_language.py at SessionStart and by post_edit_lint.py / post_auto_format.py on every edit. Each profile encodes detection markers, CLI tools, validation step tuples, and naming conventions for a language stack.",
+  "type": "object",
+  "required": ["name", "priority", "detection", "tools", "conventions", "validationSteps"],
+  "additionalProperties": false,
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Lowercase kebab-case profile identifier, e.g. 'python', 'typescript', 'fullstack'."
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["P0", "P1", "P2", "P3"],
+      "description": "P0 = primary support, P1 = supported, P2-P3 = placeholder or experimental."
+    },
+    "detection": {
+      "type": "object",
+      "required": ["markers", "extensions"],
+      "additionalProperties": false,
+      "properties": {
+        "markers": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "File patterns whose presence activates this profile, e.g. 'pyproject.toml', 'package.json'."
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^\\.[a-zA-Z0-9]+$"
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "File extensions this profile claims, e.g. '.py', '.tsx'."
+        }
+      }
+    },
+    "tools": {
+      "type": "object",
+      "required": ["formatter", "linter"],
+      "additionalProperties": false,
+      "properties": {
+        "formatter": { "$ref": "#/$defs/ToolSpec" },
+        "linter": { "$ref": "#/$defs/ToolSpec" },
+        "typeChecker": { "$ref": "#/$defs/ToolSpec" },
+        "testRunner": { "$ref": "#/$defs/ToolSpec" }
+      }
+    },
+    "packageManager": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "preferred": { "type": "string" },
+        "fallback": { "type": "string" },
+        "lockfile": { "type": "string" }
+      }
+    },
+    "agents": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9-]*$"
+      },
+      "uniqueItems": true,
+      "description": "Agent ids scoped to this profile. These agents activate only when detection markers are found."
+    },
+    "validationSteps": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Ordered list of validation step names run by the gate for this profile. Must match the canonical step tuple in _hook_shared.py."
+    },
+    "conventions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fileNaming": { "$ref": "#/$defs/NamingStyle" },
+        "functionNaming": { "$ref": "#/$defs/NamingStyle" },
+        "classNaming": { "$ref": "#/$defs/NamingStyle" },
+        "constantNaming": { "$ref": "#/$defs/NamingStyle" },
+        "variableNaming": { "$ref": "#/$defs/NamingStyle" },
+        "docstringStyle": {
+          "type": "string",
+          "enum": ["google", "numpy", "rest", "jsdoc", "tsdoc", "rustdoc", "godoc", "none"]
+        },
+        "imports": {
+          "type": "string",
+          "description": "Profile-specific import convention, e.g. 'from __future__ import annotations' for Python."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "ToolSpec": {
+      "type": "object",
+      "required": ["command", "extensions"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "CLI invocation, e.g. 'ruff format', 'eslint --fix'."
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(\\.[a-zA-Z0-9]+|[a-z_]+\\*?\\.[a-z]+)$"
+          },
+          "minItems": 1
+        },
+        "args": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "NamingStyle": {
+      "type": "string",
+      "enum": [
+        "snake_case",
+        "SCREAMING_SNAKE",
+        "kebab-case",
+        "PascalCase",
+        "camelCase",
+        "UPPERCASE",
+        "lowercase"
+      ]
+    }
+  }
+}
