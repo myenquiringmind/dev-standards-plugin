@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-standards-plugin/schemas/stamp.schema.json",
+  "title": "Validation Stamp",
+  "description": "Written by stamp_validation.py when all steps in a gate pass. Consumed by pre_commit_cli_gate.py on every git commit. One file per gate: .validation_stamp, .frontend_validation_stamp, .agent_validation_stamp, .db_validation_stamp, .api_validation_stamp. Fifteen-minute TTL, branch-specific.",
+  "type": "object",
+  "required": ["timestamp", "branch", "steps", "ttl_seconds", "version", "gate"],
+  "additionalProperties": false,
+  "properties": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when the stamp was written. Combined with ttl_seconds to determine freshness."
+    },
+    "branch": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Git branch the stamp was written on. Branch switch invalidates the stamp."
+    },
+    "steps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Ordered list of validation step names that passed. Must match the canonical step tuple in _hook_shared.py for this gate."
+    },
+    "ttl_seconds": {
+      "type": "integer",
+      "const": 900,
+      "description": "Fixed 15-minute TTL. Hard-coded per Modelling precedent to prevent arbitrary extension."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Schema version of this stamp format (semver). Allows future migration."
+    },
+    "gate": {
+      "type": "string",
+      "enum": ["code", "frontend", "agent", "db", "api"],
+      "description": "Which gate this stamp represents. Determines which stamp filename it lives in."
+    },
+    "plugin_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{7,40}$",
+      "description": "Git SHA of the installed plugin that produced this stamp. Enables drift detection between installed plugin and worktree."
+    }
+  }
+}

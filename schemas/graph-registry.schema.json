@@ -1,0 +1,309 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-standards-plugin/schemas/graph-registry.schema.json",
+  "title": "Dev Standards Plugin Graph Registry",
+  "description": "Derived artifact produced by scripts/build-graph-registry.py from per-component manifests. Never hand-edited. Validated on every commit by meta-graph-registry-validator.",
+  "type": "object",
+  "required": ["version", "generated_at", "nodes", "edges"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Schema version of the registry format (semver)."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when the registry was last rebuilt."
+    },
+    "source_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{7,40}$",
+      "description": "Git SHA of the source tree this registry was built from."
+    },
+    "nodes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/GraphNode" },
+      "description": "Every component in the framework is a node."
+    },
+    "edges": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/GraphEdge" },
+      "description": "Every relationship between components is a typed edge."
+    }
+  },
+  "$defs": {
+    "GraphNode": {
+      "type": "object",
+      "required": ["id", "type", "category", "metadata"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "description": "Unique kebab-case identifier within the registry."
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "Agent",
+            "Command",
+            "Hook",
+            "Skill",
+            "Rule",
+            "Gate",
+            "Profile",
+            "Template",
+            "MCPServer",
+            "BinTool",
+            "OutputStyle"
+          ]
+        },
+        "category": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9/-]*$",
+          "description": "Grouping path, e.g. 'design', 'patterns/behavioural', 'meta'."
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["core", "profile-scoped", "conditional"],
+          "default": "core"
+        },
+        "owner": {
+          "type": "string",
+          "description": "Optional owner for team-mode workflows."
+        },
+        "metadata": {
+          "description": "Type-specific shape. Strict shapes (AgentMetadata/HookMetadata/CommandMetadata/ProfileMetadata) apply to their respective node types; MinimalMetadata is a loose fallback for Rule, Gate, Skill, Template, MCPServer, BinTool, and OutputStyle during Phase 0-1. anyOf (not oneOf) so a strict match doesn't conflict with the permissive fallback.",
+          "anyOf": [
+            { "$ref": "#/$defs/AgentMetadata" },
+            { "$ref": "#/$defs/HookMetadata" },
+            { "$ref": "#/$defs/CommandMetadata" },
+            { "$ref": "#/$defs/ProfileMetadata" },
+            { "$ref": "#/$defs/MinimalMetadata" }
+          ]
+        }
+      }
+    },
+    "GraphEdge": {
+      "type": "object",
+      "required": ["from", "to", "type", "contract"],
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "to": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "triggers",
+            "validates",
+            "depends-on",
+            "produces",
+            "consumes",
+            "gates",
+            "composes",
+            "scoped-by",
+            "escalates-to",
+            "observed-by",
+            "derives-principle-from",
+            "overridden-by"
+          ]
+        },
+        "contract": {
+          "type": "string",
+          "description": "Name of the interface contract governing this edge, e.g. 'AgentVerdict', 'HookInput'."
+        },
+        "weight": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "Priority ordering hint."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "description": "How strongly this edge is asserted."
+        }
+      }
+    },
+    "AgentMetadata": {
+      "type": "object",
+      "required": ["agent_type", "model", "tools", "memory", "maxTurns"],
+      "additionalProperties": false,
+      "properties": {
+        "agent_type": {
+          "type": "string",
+          "enum": ["blocking", "auto-fixer", "advisory", "background"]
+        },
+        "model": {
+          "type": "string",
+          "enum": ["opus", "sonnet", "haiku"]
+        },
+        "effort": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "max"]
+        },
+        "tools": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "disallowedTools": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "skills": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "memory": {
+          "type": "string",
+          "enum": ["project", "local", "none"]
+        },
+        "maxTurns": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "isolation": {
+          "type": "string",
+          "const": "worktree"
+        },
+        "background": {
+          "type": "boolean"
+        }
+      }
+    },
+    "HookMetadata": {
+      "type": "object",
+      "required": ["event", "timeout_ms", "blocking"],
+      "additionalProperties": false,
+      "properties": {
+        "event": {
+          "type": "string",
+          "enum": [
+            "SessionStart",
+            "SessionEnd",
+            "UserPromptSubmit",
+            "Stop",
+            "StopFailure",
+            "PreToolUse",
+            "PostToolUse",
+            "PostToolUseFailure",
+            "PermissionRequest",
+            "PermissionDenied",
+            "Notification",
+            "SubagentStart",
+            "SubagentStop",
+            "TaskCreated",
+            "TaskCompleted",
+            "TeammateIdle",
+            "InstructionsLoaded",
+            "ConfigChange",
+            "CwdChanged",
+            "FileChanged",
+            "WorktreeCreate",
+            "WorktreeRemove",
+            "PreCompact",
+            "PostCompact",
+            "Elicitation",
+            "ElicitationResult"
+          ]
+        },
+        "matcher": {
+          "type": "string",
+          "description": "Tool name matcher, regex, or empty for all."
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 300000
+        },
+        "blocking": {
+          "type": "boolean"
+        },
+        "hook_type": {
+          "type": "string",
+          "enum": ["command", "http", "prompt", "agent"],
+          "default": "command"
+        }
+      }
+    },
+    "CommandMetadata": {
+      "type": "object",
+      "required": ["context", "model", "allowed_tools", "phase"],
+      "additionalProperties": false,
+      "properties": {
+        "context": {
+          "type": "string",
+          "enum": ["fork", "none"]
+        },
+        "model": {
+          "type": "string",
+          "enum": ["opus", "sonnet", "haiku"]
+        },
+        "allowed_tools": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "discover",
+            "research",
+            "design",
+            "develop",
+            "test",
+            "validate",
+            "deploy",
+            "operate",
+            "maintain",
+            "document",
+            "lifecycle",
+            "meta"
+          ]
+        }
+      }
+    },
+    "ProfileMetadata": {
+      "type": "object",
+      "required": ["detection", "priority"],
+      "additionalProperties": false,
+      "properties": {
+        "detection": {
+          "type": "object",
+          "required": ["markers", "extensions"],
+          "properties": {
+            "markers": {
+              "type": "array",
+              "items": { "type": "string" },
+              "minItems": 1
+            },
+            "extensions": {
+              "type": "array",
+              "items": { "type": "string" },
+              "minItems": 1
+            }
+          }
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["P0", "P1", "P2", "P3"]
+        }
+      }
+    },
+    "MinimalMetadata": {
+      "type": "object",
+      "description": "Fallback metadata for Rule, Gate, Skill, Template, MCPServer, BinTool, OutputStyle during Phase 0-1. Per-type schemas will be tightened in later phases.",
+      "additionalProperties": true
+    }
+  }
+}

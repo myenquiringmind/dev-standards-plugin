@@ -1,0 +1,74 @@
+[project]
+name = "dev-standards-plugin"
+version = "2.0.0-dev"
+description = "Agentic development lifecycle framework for Claude Code (Python hooks, agents, and tooling)"
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "MIT" }
+authors = [{ name = "myenquiringmind" }]
+
+# The plugin itself is a Claude Code plugin, not a Python package.
+# This pyproject.toml manages the plugin's own development environment:
+# hook code (hooks/**.py), shared modules, verification scripts, and tests.
+# It does NOT describe a redistributable Python package.
+
+[dependency-groups]
+dev = [
+    "jsonschema>=4.26",
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "portalocker>=3.0",
+    "ruff>=0.8",
+    "mypy>=1.10",
+    "hypothesis>=6.100",
+]
+
+[tool.ruff]
+line-length = 99
+target-version = "py313"
+extend-exclude = ["tmp", ".venv", "node_modules", "lib"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "W",    # pycodestyle warnings
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "A",    # flake8-builtins
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+    "RET",  # flake8-return
+    "RUF",  # ruff-specific
+]
+ignore = [
+    "E501",  # line too long (ruff format handles this)
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_reexport = true
+check_untyped_defs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_decorators = true
+disallow_any_generics = true
+exclude = ["tmp/", ".venv/", "node_modules/", "lib/"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["hooks/tests", "tests/python"]
+addopts = "-ra -q --strict-markers --strict-config"
+filterwarnings = [
+    "error",
+]
