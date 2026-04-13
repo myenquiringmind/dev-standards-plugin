@@ -3534,3 +3534,198 @@ No change to agent/hook/command/schema counts. The pack model is a **metadata an
 - **No change to component counts, principles, or timeline** — this is a delivery/activation layer, not a scope change
 
 Phase 0 impact: add `pack` field to `agent-frontmatter.schema.json` + minor doc updates before pushing the PR. Small edit, same branch.
+
+---
+
+# Appendix J — Phase 0b: Local Session Lifecycle (Code That Dogfoods)
+
+**Amendment status:** proposed 2026-04-13. Inserts a **Phase 0b** between Phase 0a (architecture lockdown, merged as PR #8) and the full Phase 1 bootstrap. Phase 0b delivers functional Python hooks that fire locally in this repo, establishing real dogfooding before stamps, agents, and commands exist.
+
+## J.1 The gap
+
+Phase 0a delivered 58 files of documentation and schemas. None of it executes. The dogfooding principle (`docs/architecture/principles/dogfooding.md`) says: "if you can't do it via the framework, the framework is missing something." Right now, the framework can't do anything. A developer working in this repo has no hooks firing, no lint running, no secrets being caught, no branch protection, no session state persisting. The old v1.4 inline JS hooks still technically exist in `hooks/hooks.json`, but they're the old system — they don't use `_os_safe.py`, `_hook_shared.py`, or any of the v2 architecture.
+
+Phase 0b closes the gap: **write the shared modules and core hooks so that working in this repo is immediately governed by the framework's own rules.**
+
+## J.2 What Phase 0b delivers (~25 files)
+
+### Shared modules (3)
+
+| File | Purpose | Lines (est.) |
+|---|---|---|
+| `hooks/_os_safe.py` | Atomic write, portalocker lock, safe_join, normalize_path, temp lifecycle. Windows-first. Every hook imports this. | ~200 |
+| `hooks/_hook_shared.py` | `read_hook_input()`, `get_current_branch()`, `get_project_dir()`, validation step tuples (placeholders until agents exist), `compute_hard_cut()`, `is_pack_active()`, cache intervals | ~250 |
+| `hooks/_session_state_common.py` | `write_session_state()`, `extract_from_transcript()`, `get_memory_dir()`, todo extraction from `## Task Progress` checkboxes | ~200 |
+
+### Core hooks (12 — the ones that DON'T need stamps or agents)
+
+| Event | Hook | What it does |
+|---|---|---|
+| SessionStart | `session_start.py` | Reads `session-state.md` from memory dir, extracts todos, injects as additionalContext, archives to `.injected` |
+| SessionEnd | `session_end.py` | Calls `write_session_state()` to persist current state |
+| PreCompact | `pre_compact.py` | Calls `write_session_state()` before compaction fires |
+| PostCompact | `post_compact.py` | Verifies state survived, drops stale caches |
+| UserPromptSubmit | `create_feature_branch.py` | Auto-cuts `feat/<timestamp>` when on a protected branch |
+| UserPromptSubmit | `context_budget.py` | Reads `.claude/.context_pct`, warns at guidelines, exits 2 at `compute_hard_cut()` |
+| PreToolUse (Edit\|Write) | `branch_protection.py` | Exits 2 on any Edit/Write when on master or other protected branch |
+| PreToolUse (Edit\|Write) | `pre_write_secret_scan.py` | Regex secret scanner: AWS/GitHub/OpenAI/Anthropic keys, private keys, generic patterns, forbidden filenames |
+| PreToolUse (Bash) | `dangerous_command_block.py` | Blocks rm -rf, git reset --hard on protected, fork bombs, etc. |
+| PostToolUse (Edit\|Write) | `post_edit_lint.py` | Reads language profile → runs ruff check + mypy on .py files; eslint + tsc on .js/.ts files |
+| PostToolUse (Edit\|Write) | `post_auto_format.py` | Reads language profile → runs ruff format on .py files |
+| PostToolUseFailure | `post_tool_failure.py` | Logs tool failure to stderr (minimal telemetry seed) |
+
+**Deliberately NOT included in Phase 0b:**
+- `pre_commit_cli_gate.py` — depends on stamps, which depend on `/validate`, which depends on agents. Including it would block every commit. Comes in Phase 1.
+- `statusline.py` — needs CC statusline mechanism integration; comes in Phase 1.
+- `session_checkpoint.py` — nice-to-have periodic save; comes in Phase 1.
+- `session_start_gitignore_audit.py` — low priority for 0b; comes in Phase 1.
+
+### hooks/hooks.json update (1 file)
+
+Replace the existing v1.4 inline JS hooks with a Python shim that calls the new `.py` files. The v1.4 hooks are deprecated; Phase 0b replaces them.
+
+Format:
+```json
+{
+  "hooks": {
+    "SessionStart": [{ "type": "command", "command": "python hooks/session_start.py" }],
+    "PreToolUse": [
+      { "type": "command", "command": "python hooks/branch_protection.py", "matcher": "Edit|Write" },
+      { "type": "command", "command": "python hooks/pre_write_secret_scan.py", "matcher": "Edit|Write" },
+      { "type": "command", "command": "python hooks/dangerous_command_block.py", "matcher": "Bash" }
+    ],
+    ...
+  }
+}
+```
+
+Each hook invocation uses the project's `.venv` Python (or falls back to system Python via `_hook_shared.get_python_path()`).
+
+### Language profiles (2)
+
+| File | Purpose |
+|---|---|
+| `config/profiles/python.json` | Detection: `pyproject.toml`, `.py`. Tools: `ruff format`, `ruff check --fix`, `mypy --strict`, `pytest`. Conventions: snake_case, Google docstrings. |
+| `config/profiles/javascript.json` | Detection: `package.json`, `.js`/`.ts`. Tools: `eslint`, `tsc --noEmit`. Conventions: camelCase, JSDoc. |
+
+These are read by `post_edit_lint.py` and `post_auto_format.py` to determine which CLI tools to run after edits.
+
+### Plugin-internal rules (5 critical, 6 deferred)
+
+Written to `.claude/rules/` for Claude to read when working in this repo:
+
+**Phase 0b (5 rules, highest value for immediate dogfooding):**
+| Rule | Purpose |
+|---|---|
+| `hook-development.md` | Hook Python conventions: exit codes, `_os_safe` mandatory, stdin JSON, timeout budgets |
+| `agent-frontmatter.md` | Agent YAML frontmatter: required fields, tier consistency, naming regex |
+| `security-internal.md` | No secrets in code, gitignore audit, dependency pinning |
+| `anti-rationalization.md` | No sycophancy, no premature closure, verify before claiming done |
+| `session-lifecycle.md` | Command ownership, WIP bypass only for emergencies, handoff protocol |
+
+**Deferred to Phase 1 (6 rules):**
+`context-preservation.md`, `testing-plugin.md`, `os-safety-internal.md`, `agent-coordination.md`, `telemetry.md`, `agentic-failure-modes.md`
+
+### Tests (est. 3-5 files)
+
+| Test file | Tests |
+|---|---|
+| `hooks/tests/test__os_safe.py` | Atomic write, file lock, safe_join (path traversal rejection), normalize_path (Windows/Unix), temp lifecycle |
+| `hooks/tests/test__hook_shared.py` | read_hook_input (valid/invalid JSON), get_current_branch, compute_hard_cut |
+| `hooks/tests/test_branch_protection.py` | Exits 2 on protected branch, exits 0 on feature branch |
+| `hooks/tests/test_pre_write_secret_scan.py` | Blocks AKIA pattern, blocks .env creation, allows normal code |
+| `hooks/tests/conftest.py` | Shared fixtures: fake hook input, temp git repo |
+
+## J.3 What Phase 0b does NOT deliver
+
+- **No stamps.** `stamp_validation.py` and `write_agent_memory.py` are Phase 1.
+- **No commit gate.** `pre_commit_cli_gate.py` is Phase 1. Commits are ungated in Phase 0b — the next session can commit freely. The discipline is HOOKS (lint, format, secret scan) not GATES (stamp enforcement).
+- **No agents.** The 10 bootstrap agents are Phase 1.
+- **No commands.** `/validate`, `/handoff`, `/setup` are Phase 1.
+- **No bootstrap-smoke.py.** The exit gate test is Phase 1.
+- **No session planner, rolling summarizer, transcript extractor, setup wizard.** Phase 1.
+
+Phase 0b is the **mechanical floor** — hooks that fire and rules that load. Phase 1 builds the **judgment layer** (agents, stamps, commands) on top.
+
+## J.4 Dependency order within Phase 0b
+
+```
+_os_safe.py + tests
+    ↓
+_hook_shared.py + _session_state_common.py + tests
+    ↓
+config/profiles/python.json + javascript.json
+    ↓
+12 core hooks (parallel, each depends on shared modules)
+    ↓
+hooks/hooks.json (shim, wires everything up)
+    ↓
+.claude/rules/ (5 rules, parallel, no code dependencies)
+    ↓
+Integration test: edit a .py file in the repo → verify ruff runs,
+format applies, branch protection blocks on master, secret scan
+blocks a deliberate AKIA string
+```
+
+### Feature branches (4, parallel where dependency allows)
+
+| Branch | Delivers | Depends on |
+|---|---|---|
+| `feat/phase-0b-shared-modules` | `_os_safe.py`, `_hook_shared.py`, `_session_state_common.py`, tests, conftest | nothing |
+| `feat/phase-0b-profiles` | `config/profiles/python.json`, `config/profiles/javascript.json` | nothing |
+| `feat/phase-0b-hooks` | 12 hooks + `hooks/hooks.json` + hook tests | shared-modules, profiles |
+| `feat/phase-0b-rules` | `.claude/rules/*.md` (5 files) | nothing |
+
+Branches 1, 2, and 4 can start in parallel. Branch 3 depends on 1 + 2.
+
+## J.5 Phase 0b exit gate
+
+Phase 0b is complete when ALL of the following are true:
+
+1. `_os_safe.py` unit tests pass on Windows (the host)
+2. `_hook_shared.py` unit tests pass (read_hook_input, get_current_branch, compute_hard_cut)
+3. `hooks/hooks.json` is updated with Python shim entries for all 12 hooks
+4. **Integration: editing a `.py` file in the repo triggers `post_edit_lint.py` (ruff check) and `post_auto_format.py` (ruff format)**
+5. **Integration: attempting to Edit a file while on `master` is blocked by `branch_protection.py` (exit 2)**
+6. **Integration: writing a string containing `AKIAIOSFODNN7EXAMPLE` is blocked by `pre_write_secret_scan.py` (exit 2)**
+7. **Integration: `session_start.py` reads a previously-written `session-state.md` and injects it as context**
+8. 5 rules exist in `.claude/rules/` and load when Claude reads files in the matching directories
+9. All hook tests pass via `uv run pytest hooks/tests/`
+10. PR merges to master
+
+After Phase 0b merges: **the next session working in this repo has hooks firing on every action.** That's real dogfooding. Phase 1 then adds the stamp gate, agents, commands, and the full smoke test.
+
+## J.6 Revised phase timeline
+
+| Phase | Duration | Delivers |
+|---|---|---|
+| ~~0~~ 0a | 1 wk | Architecture lockdown (done, PR #8 merged) |
+| **0b** | **1-2 wks** | **Local session lifecycle: shared modules + 12 hooks + profiles + rules + tests** |
+| 1 | **2 wks** (reduced from 3 — shared modules already done) | Stamps, agents, commands, commit gate, bootstrap-smoke.py |
+| 2-11 | as before | Unchanged |
+
+Total timeline: ~26 weeks → **~27 weeks** (0b adds 1-2 weeks but Phase 1 shrinks by 1 week).
+
+## J.7 Handoff spec for the next session
+
+When the current session hands off, the next session should:
+
+1. Read `CLAUDE.md` at repo root (orientation)
+2. Read `docs/phases/phase-1-bootstrap.md` (the full bootstrap contract)
+3. Read THIS appendix (J) for Phase 0b scope
+4. Check git status — should be on `master`, clean, at `ca9093c`
+5. Cut `feat/phase-0b-shared-modules` off master
+6. Start writing `hooks/_os_safe.py` — the first functional Python file in the v2 architecture
+
+The next session's FIRST deliverable is `_os_safe.py` with passing tests. Everything else depends on it.
+
+## J.8 What Appendix J commits to
+
+- **Phase 0b inserted** between Phase 0a (done) and Phase 1 (bootstrap)
+- **~25 files** of functional Python code: 3 shared modules, 12 hooks, hooks.json, 2 profiles, 5 rules, ~5 test files
+- **Real dogfooding from Phase 0b exit:** hooks fire on every tool call in this repo
+- **Stamps, agents, commands deferred to Phase 1** — Phase 0b is the mechanical floor, Phase 1 is the judgment layer
+- **4 feature branches** with clear dependency order
+- **10-point exit gate** including 4 integration tests
+- **Timeline: +1-2 weeks** for 0b, -1 week from Phase 1 = net +1 week
+- **Handoff spec** for the next session to pick up immediately
