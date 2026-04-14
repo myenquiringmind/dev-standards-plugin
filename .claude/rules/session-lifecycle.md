@@ -2,6 +2,8 @@
 
 This rule governs how every agent works in this repo. Follow it from the first prompt to the last commit.
 
+This rule covers *how* to do an objective (the mechanics). It composes with [stewardship-ratchet.md](stewardship-ratchet.md), which covers *what condition the system must be in when you hand it back* (the contract). Read both.
+
 ## The Objective Lifecycle
 
 Every unit of work follows these 7 steps. No exceptions, no shortcuts.
@@ -24,16 +26,27 @@ Write the code. Follow the conventions in `hooks/CLAUDE.md` for hook code. Use `
 
 ### 5. VALIDATE
 
-Run the full check suite **deliberately, as a distinct step**:
+Run the full check suite **deliberately, as a distinct step**. Validate at **module scope**, not just the files you edited — tests hide strictness debt:
 
 ```
-uv run ruff check <files>
-uv run ruff format --check <files>
-uv run mypy <files>
-uv run pytest <test_files> -v
+uv run ruff check hooks/
+uv run ruff format --check hooks/
+uv run mypy --strict hooks/
+uv run pytest hooks/tests/ -v
 ```
 
 Do not scatter validation across implementation. Do not claim validation passed without actually running it. Verify each acceptance criterion from step 1.
+
+### 5.5 OBSERVE
+
+After the check suite runs, survey what it surfaced — **both errors caused by your changes and pre-existing errors**. For each, classify per the graduated response schema in [stewardship-ratchet.md](stewardship-ratchet.md):
+
+- **Tier 1** (silent fix) — bundle into the current commit.
+- **Tier 2** (same-session sidecar) — separate commit on the same branch, landing **before** the feature commit.
+- **Tier 3** (todo registry) — create an entry in `docs/todo-registry/`, flag in session state.
+- **Tier 4** (user escalation) — stop, `AskUserQuestion`, wait.
+
+**Never** move to COMMIT with known surfaced breakage unaddressed. Authorship is irrelevant — the moment validation surfaces a broken invariant, the current session owns it (Competence Ratchet).
 
 ### 6. COMMIT
 
@@ -48,6 +61,15 @@ git commit -m "[WIP] <what was done and what remains>"
 WIP commits are context-loss mitigation. They checkpoint progress so the next session can resume rather than re-derive. They are not a substitute for completing the objective — the next session must finish the work and commit properly.
 
 **Never let validated work sit uncommitted.** A crash, a `/clear`, or a compaction event can lose uncommitted work. Commit is the checkpoint.
+
+**Every commit ends with a validation footer** — the portable trust signal the next session reads:
+
+```
+Validated: ruff-check ✅  ruff-format ✅  mypy-strict ✅  pytest N/N ✅
+At: <ISO-8601 UTC timestamp>  Model: <model id>
+```
+
+WIP commits carry the same footer with failures explicit and a `Next session first:` line. See [stewardship-ratchet.md](stewardship-ratchet.md) for the branch-pickup protocol that consumes these footers.
 
 ### 7. REFLECT
 
@@ -82,6 +104,8 @@ The next session reads this state and picks up from step 2 (GAP) of the next obj
 
 ## What This Rule Does Not Cover
 
+- **Stewardship contract, Competence Ratchet, graduated response** — see [stewardship-ratchet.md](stewardship-ratchet.md)
+- **Todo registry schema and lifecycle** — see `docs/todo-registry/README.md`
 - **Hook conventions** — see `hooks/CLAUDE.md`
 - **Stamp validation** — see `docs/architecture/principles/stamps.md` (Phase 1+)
 - **Context budgets** — see `docs/architecture/principles/context-awareness.md`
