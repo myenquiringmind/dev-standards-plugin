@@ -51,6 +51,12 @@ Related ADRs, related principles, archived planning material.
 | [005](./adr-005-documentation-as-code.md) | Documentation as code | All runtime docs ≤200 lines, enforced by hook. Diataxis taxonomy. Composition via `@include`. |
 | [006](./adr-006-context-awareness-absolute-budgets.md) | Context awareness with absolute budgets | One hard constraint (never compact, dynamic cut). Everything else is guidelines. LITM defence via rolling summarizer + session planner. |
 
+## Subsequent ADRs
+
+| # | Title | Subject |
+|---|---|---|
+| [007](./adr-007-git-as-ground-truth-and-multi-branch-coordination.md) | Git as ground truth and multi-branch coordination | Makes explicit the stance already implicit in stamps/bootstrap/dogfooding: git is sole source of truth. Defines validation-footer convention, branch-pickup protocol, and multi-branch PR coordination. |
+
 ## The archived canonical plan
 
 `v2-architecture-planning-session.md` is the full planning session that produced this architecture — approximately 3300 lines including all amendments (Appendices A through H). It is:
