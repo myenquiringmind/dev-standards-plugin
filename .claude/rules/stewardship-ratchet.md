@@ -2,6 +2,8 @@
 
 This rule encodes the agent's relationship to the system's quality floor. Every agent working in this repo is a steward for the duration of its session — not merely a doer of tasks. Stewardship composes with the [session lifecycle](session-lifecycle.md); the lifecycle says *how* to do an objective, this rule says *what condition the system must be in when you hand it back*.
 
+The architectural rationale — why git is the sole source of truth and how that drives the conventions below — lives in [ADR-007](../../docs/decision-records/adr-007-git-as-ground-truth-and-multi-branch-coordination.md). The practical how-to for multi-branch work lives in [docs/guides/multi-branch-coordination.md](../../docs/guides/multi-branch-coordination.md).
+
 ## The Stewardship Contract
 
 > If the system was in state S at session start, the agent returns it in state S′ where every invariant that held in S still holds in S′, AND every invariant the agent's validation surfaced as broken is either (a) repaired in-session, or (b) explicitly handed off as a WIP commit with full reproduction info and a remediation plan.
@@ -70,7 +72,7 @@ Known-broken: hooks/foo.py:42 (type mismatch); hooks/tests/test_foo.py (2 failur
 Next session first: repair these before continuing with objective X
 ```
 
-The footer is the **portable trust signal** the next session reads. Without it, the next session must re-run full validation before trusting the branch.
+The footer is the **portable trust signal** the next session reads. Without it, the next session must re-run full validation before trusting the branch. For the full architectural rationale (including how footers complement session-scoped stamps), see [ADR-007](../../docs/decision-records/adr-007-git-as-ground-truth-and-multi-branch-coordination.md).
 
 ## Branch-Pickup Protocol
 
@@ -84,11 +86,13 @@ When a new session inherits an in-flight branch (including the case where the pr
    - Incoherent or unclear → tier-4 escalation to User.
 5. Only then start new work.
 
-"Fix-first" does **not** mean "always re-validate from scratch." It means: trust nothing the footer doesn't vouch for, and once you've run validation, close every open loop before moving on.
+"Fix-first" does **not** mean "always re-validate from scratch." It means: trust nothing the footer doesn't vouch for, and once you've run validation, close every open loop before moving on. The practical step-by-step (worktree setup, cross-references, PR body template, merge-order derivation) lives in [docs/guides/multi-branch-coordination.md](../../docs/guides/multi-branch-coordination.md).
 
 ## What This Rule Does Not Cover
 
 - **How to structure an objective** — see [session-lifecycle.md](session-lifecycle.md).
+- **Why git is the source of truth** — see [ADR-007](../../docs/decision-records/adr-007-git-as-ground-truth-and-multi-branch-coordination.md).
+- **How to execute multi-branch work** — see [docs/guides/multi-branch-coordination.md](../../docs/guides/multi-branch-coordination.md).
 - **The todo registry's schema and lifecycle** — see [../../docs/todo-registry/README.md](../../docs/todo-registry/README.md).
 - **Hook conventions and size limits** — see `hooks/CLAUDE.md` and `docs/CLAUDE.md`.
 - **Context budget and handoff timing** — see `docs/architecture/principles/context-awareness.md`.
