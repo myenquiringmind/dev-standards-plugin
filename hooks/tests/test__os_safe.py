@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import threading
 from pathlib import Path
+from typing import IO, cast
 
 import pytest
 
@@ -95,7 +96,9 @@ class TestLockedOpen:
         target = tmp_dir / "locktest.txt"
         target.write_text("hello", encoding="utf-8")
 
-        with locked_open(target, "r+") as fh:
+        with locked_open(target, "r+") as raw_fh:
+            # locked_open yields IO[str] | IO[bytes]; we opened in text mode.
+            fh = cast("IO[str]", raw_fh)
             data = fh.read()
             assert data == "hello"
             fh.seek(0)
@@ -113,7 +116,8 @@ class TestLockedOpen:
 
         def writer(label: str) -> None:
             barrier.wait()
-            with locked_open(target, "r+", timeout=10) as fh:
+            with locked_open(target, "r+", timeout=10) as raw_fh:
+                fh = cast("IO[str]", raw_fh)
                 fh.seek(0)
                 fh.write(label)
                 fh.truncate()
@@ -173,7 +177,7 @@ class TestAtomicWrite:
             with pytest.raises(BoomError):
                 atomic_write(target, "should not appear")
         finally:
-            os.replace = real_replace  # type: ignore[assignment]
+            os.replace = real_replace
 
         assert target.read_text(encoding="utf-8") == "original"
 
