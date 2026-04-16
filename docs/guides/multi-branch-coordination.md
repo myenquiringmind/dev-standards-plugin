@@ -79,6 +79,11 @@ The footer is consumed by the **branch-pickup protocol** below. Inconsistent or 
 When a session inherits an in-flight branch (new session, agent crash, human handoff):
 
 1. `git log -1 --format=%B` — read the last commit's footer.
+   - **If HEAD is a merge commit** (e.g. GitHub's `Merge pull request …`), the merge commit does not carry the footer — it lives on the last non-merge ancestor. Read that instead:
+     ```bash
+     git log --no-merges -1 --format=%B | tail -5
+     ```
+     `--no-merges -1` is preferred over `--first-parent -1` because criss-cross merges can leave the first-parent pointing at a stale footer; `--no-merges` always returns the most recent commit that *could* carry one.
 2. **Footer present, recent, all ✅** → trust, skip revalidation, proceed with new work.
 3. **Footer missing, stale, or has any ❌** → run full module-scope validation first. Classify surfaced issues via graduated response in `stewardship-ratchet.md`.
 4. `git status` — if orphaned uncommitted work exists:
