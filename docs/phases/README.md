@@ -7,6 +7,7 @@ The 11-phase implementation roadmap for `dev-standards-plugin` v2. Each phase is
 | # | Phase | Duration | Exit state |
 |---|---|---|---|
 | 0 | [Architecture Lockdown](./phase-0-architecture-lockdown.md) | 1 wk | Schemas + principles + Diataxis docs + SECURITY.md committed; foundations in place for Phase 1 to start |
+| 0b | [Bootstrap-the-Bootstrap](./phase-0b-exit-report.md) | (landed) | Rules + 3 shared modules + 2 language profiles + 12 Python hooks + `hooks.json` shim; framework dogfoods its own rules and hooks at the mechanical level |
 | 1 | [Bootstrap Spike](./phase-1-bootstrap.md) | 3 wks | ~46-file minimum viable self-hosting lifecycle; `bootstrap-smoke.py` passes 13 assertions; framework validates its own commits |
 | 2 | Hook Completion | 2 wks | Remaining 25 hooks beyond the bootstrap 17 |
 | 3 | Language Profiles + State Inventory Scanners | 2 wks | `typescript.json`, `fullstack.json`, placeholder profiles; brownfield scanner pipeline (codebase/database/api scanners + reason-tier analysts) |
