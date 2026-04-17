@@ -271,7 +271,7 @@ When this agent identifies issues, apply these specific fixes:
 ```javascript
 // Before: Unvalidated package name
 function installPackage(name) {
-  exec(`pip install ${name}`);
+  exec(`uv pip install ${name}`);
 }
 
 // After: Validated with whitelist
@@ -279,7 +279,7 @@ function installPackage(name) {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(name)) {
     throw new ValidationError(`Invalid package name: ${name}`);
   }
-  exec(`pip install ${escapeShellArg(name)}`);
+  exec(`uv pip install ${escapeShellArg(name)}`);
 }
 ```
 

@@ -56,7 +56,7 @@ A future hook (Phase D or later) will validate: no PR merges with unresolved blo
 
 ### Open
 
-- [TR-0002](TR-0002-standardize-uv-across-framework-outputs.md) — standardize `uv run` across framework outputs and add uv-env management agents (`operate-uv-env-initializer`, `operate-uv-dep-manager`, `maintain-uv-env-doctor`)
+- [TR-0002](TR-0002-standardize-uv-across-framework-outputs.md) — **IN_PROGRESS** — sub-plan 1 (docs cleanup) landing; sub-plan 2 (uv-env management agents: `operate-uv-env-initializer`, `operate-uv-dep-manager`, `maintain-uv-env-doctor`) remains open and blocked on the Phase 2 meta-agent-scaffolder
 
 ### Recently closed
 

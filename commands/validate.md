@@ -8,7 +8,7 @@ Perform comprehensive validation that changes are correct and active.
 ```bash
 # Run linter (detect which one is configured)
 npm run lint || yarn lint || pnpm lint ||
-ruff check . || pylint . ||
+uv run ruff check . || uv run pylint . ||
 golangci-lint run ||
 cargo clippy
 ```
@@ -20,7 +20,7 @@ cargo clippy
 ```bash
 # Run tests (detect which framework)
 npm test || yarn test || pnpm test ||
-pytest || python -m pytest ||
+uv run pytest ||
 go test ./... ||
 cargo test
 ```

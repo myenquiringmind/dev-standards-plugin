@@ -18,10 +18,10 @@ The validate phase runs the multi-language, multi-gate validation pipeline that 
 
 | Step | Agent/tool | Type | Blocking? |
 |---|---|---|---|
-| 1 | `ruff check` | CLI | Yes |
-| 2 | `ruff format --check` | CLI | Yes |
-| 3 | `mypy --strict` | CLI | Yes |
-| 4 | `pytest` | CLI | Yes |
+| 1 | `uv run ruff check` | CLI | Yes |
+| 2 | `uv run ruff format --check` | CLI | Yes |
+| 3 | `uv run mypy --strict` | CLI | Yes |
+| 4 | `uv run pytest` | CLI | Yes |
 | 5 | `validation-objective-verifier` | Agent (reason) | **Yes — blocks scope drift** |
 | 6 | `py-solid-dry-reviewer` | Agent (write) | Yes |
 | 7 | `py-security-reviewer` | Agent (write) | Yes |

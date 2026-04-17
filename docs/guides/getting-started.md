@@ -29,9 +29,9 @@ This creates a `.venv/` directory (gitignored) with all development dependencies
 ## 3. Verify the schemas
 
 ```bash
-.venv/Scripts/python.exe -m pytest tests/schemas/   # when available
+uv run pytest tests/schemas/   # when available
 # Or for Phase 0 verification:
-.venv/Scripts/python.exe tmp/verify-phase-0.py       # if the throwaway verifier exists
+uv run python tmp/verify-phase-0.py   # if the throwaway verifier exists
 ```
 
 ## 4. Set up Node.js (for the existing `lib/`)
