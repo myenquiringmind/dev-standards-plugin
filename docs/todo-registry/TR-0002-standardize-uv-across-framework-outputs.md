@@ -32,4 +32,19 @@
 
 - **Blocks:** nothing immediately (advisory, cross-cutting cleanup). Sub-plan 1 can ride alongside Phase C or Phase D work. Sub-plan 2 is blocked on Phase 2 agent scaffolder.
 
-- **Status:** OPEN
+- **Status:** IN_PROGRESS (sub-plan 1 landing via `docs/tr-0002-uv-run-framework-outputs`; sub-plan 2 remains OPEN and blocked on Phase 2)
+
+## Sub-plan 1 resolution
+
+Sub-plan 1 resolved in commit `<filled at merge>` on `docs/tr-0002-uv-run-framework-outputs`. All six files enumerated in Gap 1 now route Python tooling through `uv run` (or `uv pip install` for the agents/validation-standards.md advisory example):
+
+- `commands/typecheck.md` — Python type-check, lint, fallback lint, and Ruff auto-fix all `uv run`-prefixed
+- `commands/validate.md` — lint and test chains drop bare `pytest`/`python -m pytest` fallback, use `uv run pytest` / `uv run ruff check` / `uv run pylint`
+- `docs/guides/getting-started.md` — schema verification steps use `uv run pytest` and `uv run python` instead of `.venv/Scripts/python.exe`
+- `hooks/CLAUDE.md` — test invocation rewritten from `.venv/Scripts/python.exe -m pytest` to `uv run pytest`, and the preamble says "Run from the project root" instead of "Run from .venv"
+- `docs/architecture/lifecycle/validate.md` — Python gate table shows `uv run ruff check`, `uv run ruff format --check`, `uv run mypy --strict`, `uv run pytest`
+- `agents/validation-standards.md` — example code uses `uv pip install` in both the before-and-after rectifications
+
+Verification: `rg -nE "^\s*(ruff|mypy|pytest|pylint|pip install)" commands/ docs/guides/ docs/architecture/lifecycle/validate.md agents/validation-standards.md` returns nothing outside `uv run`/`uv pip` contexts.
+
+Sub-plan 2 (agents) remains OPEN and blocked on the Phase 2 `meta-agent-scaffolder`.

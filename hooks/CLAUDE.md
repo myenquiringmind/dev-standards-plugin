@@ -50,10 +50,10 @@ Every hook gets a pytest test file in `hooks/tests/test_<name>.py`. Shared modul
 3. Stdout/stderr content matches the contract
 4. Side effects (file writes, stamp creation) use `_os_safe`
 
-Run from `.venv`:
+Run from the project root:
 
 ```
-.venv/Scripts/python.exe -m pytest hooks/tests/
+uv run pytest hooks/tests/
 ```
 
 ## Never do this

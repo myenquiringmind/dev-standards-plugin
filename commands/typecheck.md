@@ -23,13 +23,13 @@ npx eslint . --ext .js,.jsx,.ts,.tsx
 ### Python
 ```bash
 # Type checking
-mypy . --ignore-missing-imports
+uv run mypy . --ignore-missing-imports
 
-# Linting  
-ruff check .
+# Linting
+uv run ruff check .
 
 # Or fallback
-pylint **/*.py
+uv run pylint **/*.py
 ```
 
 ### Go
@@ -82,7 +82,7 @@ After running, offer to fix auto-fixable issues:
 npx eslint . --fix
 
 # Ruff auto-fix
-ruff check . --fix
+uv run ruff check . --fix
 
 # Prettier format
 npx prettier --write .
