@@ -23,12 +23,14 @@
       "required": ["version"]
     },
     "SessionStart": { "$ref": "#/definitions/hookEntryArray" },
+    "SessionEnd": { "$ref": "#/definitions/hookEntryArray" },
     "UserPromptSubmit": { "$ref": "#/definitions/hookEntryArray" },
     "PreToolUse": { "$ref": "#/definitions/hookEntryArray" },
     "PostToolUse": { "$ref": "#/definitions/hookEntryArray" },
     "Stop": { "$ref": "#/definitions/hookEntryArray" },
     "SubagentStop": { "$ref": "#/definitions/hookEntryArray" },
-    "PreCompact": { "$ref": "#/definitions/hookEntryArray" }
+    "PreCompact": { "$ref": "#/definitions/hookEntryArray" },
+    "PostCompact": { "$ref": "#/definitions/hookEntryArray" }
   },
   "definitions": {
     "hookEntryArray": {
