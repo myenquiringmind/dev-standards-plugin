@@ -7,6 +7,10 @@
   "required": ["name", "priority", "detection", "tools", "conventions", "validationSteps"],
   "additionalProperties": false,
   "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional reference to this schema for IDE validation hints, following the convention used by config/defaults.json."
+    },
     "name": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9-]*$",

@@ -1,0 +1,54 @@
+{
+  "$schema": "../../schemas/profile.schema.json",
+  "name": "python",
+  "priority": "P0",
+  "detection": {
+    "markers": ["pyproject.toml"],
+    "extensions": [".py"]
+  },
+  "tools": {
+    "formatter": {
+      "command": "ruff format {file}",
+      "extensions": [".py"]
+    },
+    "linter": {
+      "command": "ruff check --fix {file}",
+      "extensions": [".py"]
+    },
+    "typeChecker": {
+      "command": "mypy {file} --strict",
+      "extensions": [".py"]
+    },
+    "testRunner": {
+      "command": "pytest {file}",
+      "extensions": [".py"]
+    }
+  },
+  "packageManager": {
+    "preferred": "uv",
+    "fallback": "pip",
+    "lockfile": "uv.lock"
+  },
+  "validationSteps": [
+    "ruff-check",
+    "ruff-format",
+    "mypy-strict",
+    "pytest",
+    "objective-verifier",
+    "py-solid-dry-reviewer",
+    "py-security-reviewer",
+    "py-doc-checker",
+    "py-arch-doc-reviewer",
+    "py-code-simplifier",
+    "py-tdd-process-reviewer"
+  ],
+  "conventions": {
+    "fileNaming": "snake_case",
+    "functionNaming": "snake_case",
+    "classNaming": "PascalCase",
+    "constantNaming": "SCREAMING_SNAKE",
+    "variableNaming": "snake_case",
+    "docstringStyle": "google",
+    "imports": "from __future__ import annotations"
+  }
+}
