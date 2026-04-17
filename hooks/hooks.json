@@ -1,12 +1,13 @@
 {
   "_meta": {
-    "version": "1.4.0",
+    "version": "2.0.0",
     "changelog": [
       "1.0.0 - Initial release: formatting, branch protection, validation",
       "1.1.0 - Added type checking, logging, lint-on-save, cross-platform support",
       "1.2.0 - Added venv-aware Python tool execution with auto-create via uv",
       "1.3.0 - Modular lib structure, orchestrator + domain agents architecture",
-      "1.4.0 - Git workflow integration: auto-branch, phase commits, rollback, PR finalization"
+      "1.4.0 - Git workflow integration: auto-branch, phase commits, rollback, PR finalization",
+      "2.0.0 - Replace v1.4 Node inline hooks with v2.0 Python shim (Phase D6). Registers 12 Python hooks under hooks/ against 8 CC events. Invocation: uv run python -m hooks.<name>."
     ]
   },
 
@@ -16,222 +17,25 @@
       "hooks": [
         {
           "type": "command",
-          "command": "node -e \"const os=require('os');const fs=require('fs');const path=require('path');const{execSync}=require('child_process');const https=require('https');const logDir=path.join(os.homedir(),'.claude','logs');const cacheFile=path.join(os.homedir(),'.claude','.claude-plugin-version-cache.json');const VERSION='1.4.0';const REPO='myenquiringmind/dev-standards-plugin';try{fs.mkdirSync(logDir,{recursive:true})}catch(e){}const logFile=path.join(logDir,'session.log');const ts=new Date().toISOString();const cwd=process.cwd();try{fs.appendFileSync(logFile,'['+ts+'] SESSION_START in '+cwd+'\\n')}catch(e){}console.log('--- Project Context ---');try{const status=execSync('git status --short',{encoding:'utf8',timeout:3000}).trim();console.log(status||'Working tree clean')}catch(e){console.log('Not a git repo')};console.log('---');const todos=['TODO.md','TASKS.md'];for(const t of todos){const f=path.join(cwd,t);if(fs.existsSync(f)){try{console.log(fs.readFileSync(f,'utf8').split('\\n').slice(0,20).join('\\n'))}catch(e){}break}};let skipCheck=false;try{if(fs.existsSync(cacheFile)){const c=JSON.parse(fs.readFileSync(cacheFile,'utf8'));if(Date.now()-new Date(c.lastCheck).getTime()<86400000)skipCheck=true}}catch{}if(!skipCheck){const req=https.get('https://api.github.com/repos/'+REPO+'/releases/latest',{headers:{'User-Agent':'dev-standards-plugin'},timeout:5000},res=>{if(res.statusCode===200){let d='';res.on('data',c=>d+=c);res.on('end',()=>{try{const r=JSON.parse(d);const lv=r.tag_name?.replace(/^v/,'')||null;if(lv){try{fs.writeFileSync(cacheFile,JSON.stringify({lastCheck:ts,latestVersion:lv,currentVersion:VERSION}))}catch{}const cmp=(a,b)=>{const pa=a.split('.').map(Number),pb=b.split('.').map(Number);for(let i=0;i<3;i++){if((pa[i]||0)>(pb[i]||0))return 1;if((pa[i]||0)<(pb[i]||0))return -1}return 0};if(cmp(lv,VERSION)>0){console.error('[dev-standards] Update available: '+VERSION+' -> '+lv+' (https://github.com/'+REPO+'/releases)')}}}catch{}})}});req.on('error',()=>{});req.on('timeout',()=>req.destroy())}\"",
-          "timeout": 10
+          "command": "uv run python -m hooks.session_start",
+          "timeout": 15
         }
       ],
-      "description": "Load project context, log session start, and check for updates"
-    },
-    {
-      "matcher": "*",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "node -e \"const fs=require('fs');const path=require('path');const{execSync}=require('child_process');const stateFile=path.join(process.cwd(),'tmp','.orchestrator-state.json');try{const branch=execSync('git branch --show-current',{encoding:'utf8',timeout:3000}).trim();const protected=['main','master','production','develop','staging','release'];if(protected.includes(branch)){console.error('[Git] Warning: On protected branch ('+branch+'). Create feature branch before making changes.')};if(fs.existsSync(stateFile)){const data=JSON.parse(fs.readFileSync(stateFile,'utf8'));if(data.orchestrator?.git?.workflowBranch&&branch!==data.orchestrator.git.workflowBranch){console.error('[Orchestrator] Warning: Active workflow on branch '+data.orchestrator.git.workflowBranch+' but currently on '+branch+'. Run: git checkout '+data.orchestrator.git.workflowBranch)}}}catch{}\"",
-          "timeout": 5
-        }
-      ],
-      "description": "Warn about branch state and orchestrator workflow on session start"
+      "description": "Restore session state and inject additionalContext from memory dir"
     }
   ],
 
-  "UserPromptSubmit": [
+  "SessionEnd": [
     {
       "matcher": "*",
       "hooks": [
         {
           "type": "command",
-          "command": "node -e \"const os=require('os');const fs=require('fs');const path=require('path');const logDir=path.join(os.homedir(),'.claude','logs');try{fs.mkdirSync(logDir,{recursive:true})}catch(e){}try{fs.appendFileSync(path.join(logDir,'session.log'),'['+new Date().toISOString()+'] PROMPT\\n')}catch(e){}\"",
-          "timeout": 3
+          "command": "uv run python -m hooks.session_end",
+          "timeout": 15
         }
       ],
-      "description": "Log user prompts for session history"
-    }
-  ],
-
-  "PreToolUse": [
-    {
-      "matcher": "Edit|Write|MultiEdit",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "node -e \"const{execSync}=require('child_process');try{const branch=execSync('git branch --show-current 2>&1',{encoding:'utf8',timeout:3000}).trim();const protected=['main','master','production','develop','staging','release'];if(protected.includes(branch)){console.log(JSON.stringify({decision:'block',reason:'Cannot edit directly on protected branch ('+branch+'). Create a feature branch first: git checkout -b feature/your-feature'}));process.exit(0)}}catch(e){}let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(d))\"",
-          "timeout": 5
-        }
-      ],
-      "description": "Block direct edits to protected branches"
-    },
-    {
-      "matcher": "Edit|Write|MultiEdit",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "node -e \"const fs=require('fs');const path=require('path');const stateFile=path.join(process.cwd(),'tmp','.orchestrator-state.json');try{if(fs.existsSync(stateFile)){const data=fs.readFileSync(stateFile,'utf8');const state=JSON.parse(data);if(state.orchestrator&&state.orchestrator.checkpointStatus==='pending'){console.log(JSON.stringify({decision:'block',reason:'Orchestrator checkpoint pending for '+state.orchestrator.currentPhase+' phase. Please approve or reject before making changes: node lib/orchestrator/cli.js checkpoint approve'}));process.exit(0)}}}catch(e){}let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(d))\"",
-          "timeout": 5
-        }
-      ],
-      "description": "Block edits when orchestrator checkpoint is pending"
-    },
-    {
-      "matcher": "Edit|Write|MultiEdit",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "node -e \"const fs=require('fs');const path=require('path');const{execSync}=require('child_process');const stateFile=path.join(process.cwd(),'tmp','.orchestrator-state.json');try{if(fs.existsSync(stateFile)){const data=JSON.parse(fs.readFileSync(stateFile,'utf8'));const gitState=data.orchestrator?.git;if(gitState&&gitState.enabled&&gitState.workflowBranch){const currentBranch=execSync('git branch --show-current',{encoding:'utf8',timeout:3000}).trim();if(currentBranch!==gitState.workflowBranch){console.log(JSON.stringify({decision:'block',reason:'Not on orchestrator workflow branch. Current: '+currentBranch+', Expected: '+gitState.workflowBranch+'. Run: git checkout '+gitState.workflowBranch}));process.exit(0)}}}}catch(e){}let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(d))\"",
-          "timeout": 5
-        }
-      ],
-      "description": "Ensure edits happen on orchestrator workflow branch"
-    },
-    {
-      "matcher": "Bash",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{if(!d||!d.trim()){console.log(d||'');process.exit(0)}const i=JSON.parse(d);if(!i||typeof i!=='object'){console.log(d);process.exit(0)}const cmd=(i.tool_input&&typeof i.tool_input.command==='string')?i.tool_input.command:'';if(!cmd){console.log(d);process.exit(0)}const dangerous=[/rm\\s+-rf\\s+\\/(?!tmp)/,/rm\\s+-rf\\s+~/,/rm\\s+-rf\\s+\\*/,/DROP\\s+(DATABASE|TABLE)/i,/TRUNCATE\\s+TABLE/i,/DELETE\\s+FROM\\s+\\w+\\s*;?$/i,/:(){\\s*:|&\\s*};:/,/>\\/dev\\/sda/,/mkfs\\./,/dd\\s+if=.*of=\\/dev/,/chmod\\s+-R\\s+777\\s+\\//,/curl.*\\|\\s*(bash|sh)/,/wget.*\\|\\s*(bash|sh)/,/format\\s+[cdefgh]:/i,/Remove-Item.*-Recurse.*-Force.*[A-Z]:\\\\/i];for(const p of dangerous){if(p.test(cmd)){console.log(JSON.stringify({decision:'block',reason:'Potentially destructive command blocked: '+cmd.substring(0,50)}));process.exit(0)}}console.log(d)}catch(e){console.log(d||'{}')}})\"",
-          "timeout": 5
-        }
-      ],
-      "description": "Block dangerous shell commands"
-    }
-  ],
-
-  "PostToolUse": [
-    {
-      "matcher": "Edit|Write|MultiEdit",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "node -e \"const{execSync}=require('child_process');const fs=require('fs');const path=require('path');const cwd=process.cwd();const findVenv=()=>{for(const n of['.venv','venv','.uv']){const p=path.join(cwd,n,process.platform==='win32'?'Scripts/python.exe':'bin/python');if(fs.existsSync(p))return p}return null};const runPy=(mod,args)=>{const vpy=findVenv();const cmd=vpy?`\\\"${vpy}\\\" -m ${mod} ${args}`:`${mod} ${args}`;try{execSync(cmd,{stdio:'pipe',timeout:15000})}catch{}};let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{if(!d||!d.trim()){console.log(d||'');return}const i=JSON.parse(d);const p=i.tool_input?.file_path||i.tool_input?.files?.[0]?.file_path;if(!p||typeof p!=='string'){console.log(d);return}const resolved=path.resolve(p);if(!fs.existsSync(resolved)){console.log(d);return}const ext=path.extname(resolved).slice(1).toLowerCase();if(['js','jsx','ts','tsx','json','css','scss','html','md'].includes(ext)){try{execSync('npx prettier --write '+JSON.stringify(resolved),{stdio:'pipe',timeout:10000})}catch{}}else if(ext==='py'){runPy('ruff','format '+JSON.stringify(resolved))}else if(ext==='go'){try{execSync('gofmt -w '+JSON.stringify(resolved),{stdio:'pipe',timeout:10000})}catch{}}else if(ext==='rs'){try{execSync('rustfmt '+JSON.stringify(resolved),{stdio:'pipe',timeout:10000})}catch{}}console.log(d)}catch(e){console.log(d||'')}})\"",
-          "timeout": 20
-        }
-      ],
-      "description": "Auto-format files after editing (venv-aware for Python)"
-    },
-    {
-      "matcher": "Edit|Write|MultiEdit",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "node -e \"const{execSync}=require('child_process');const fs=require('fs');const path=require('path');const cwd=process.cwd();const findVenv=()=>{for(const n of['.venv','venv','.uv']){const p=path.join(cwd,n,process.platform==='win32'?'Scripts/python.exe':'bin/python');if(fs.existsSync(p))return p}return null};const cmdExists=c=>{try{execSync((process.platform==='win32'?'where ':'which ')+c,{stdio:'pipe'});return true}catch{return false}};const ensureVenv=(tool)=>{const vp=path.join(cwd,'.venv');const py=path.join(vp,process.platform==='win32'?'Scripts/python.exe':'bin/python');if(!fs.existsSync(py)){console.error('[dev-standards] Creating .venv...');if(cmdExists('uv')){try{execSync('uv venv \"'+vp+'\"',{stdio:'pipe',timeout:60000})}catch{execSync((process.platform==='win32'?'python':'python3')+' -m venv \"'+vp+'\"',{stdio:'pipe',timeout:60000})}}else{execSync((process.platform==='win32'?'python':'python3')+' -m venv \"'+vp+'\"',{stdio:'pipe',timeout:60000})}}try{execSync('\"'+py+'\" -m '+tool+' --version',{stdio:'pipe',timeout:5000})}catch{console.error('[dev-standards] Installing '+tool+'...');if(cmdExists('uv')){execSync('uv pip install '+tool+' --python \"'+py+'\"',{stdio:'pipe',timeout:120000})}else{const pip=path.join(vp,process.platform==='win32'?'Scripts/pip.exe':'bin/pip');execSync('\"'+pip+'\" install '+tool,{stdio:'pipe',timeout:120000})}}return py};let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{if(!d||!d.trim()){console.log(d||'');return}const i=JSON.parse(d);const p=i.tool_input?.file_path||i.tool_input?.files?.[0]?.file_path;if(!p||typeof p!=='string'){console.log(d);return}const resolved=path.resolve(p);const ext=path.extname(resolved).slice(1).toLowerCase();let errors=[];if(['ts','tsx'].includes(ext)){try{execSync('npx tsc --noEmit '+JSON.stringify(resolved)+' 2>&1',{timeout:30000})}catch(e){const msg=e.stdout?.toString()||e.stderr?.toString()||'';if(msg.includes('error TS')){errors.push('TypeScript: '+(msg.split('\\n').find(l=>l.includes('error TS'))||'type error').substring(0,100))}}}if(ext==='py'){try{const py=findVenv()||ensureVenv('mypy');const cmd='\"'+py+'\" -m mypy --ignore-missing-imports '+JSON.stringify(resolved)+' 2>&1';execSync(cmd,{timeout:30000})}catch(e){const out=e.stdout?.toString()||e.stderr?.toString()||'';if(out.includes('error:')){errors.push('mypy: '+(out.split('\\n').find(l=>l.includes('error:'))||'type error').substring(0,100))}}}if(errors.length){console.error('[Type Check] '+errors.join('; '))}console.log(d)}catch(e){console.log(d||'')}})\"",
-          "timeout": 150
-        }
-      ],
-      "description": "Run type checking (venv-aware, auto-creates venv with uv for Python)"
-    },
-    {
-      "matcher": "Edit|Write|MultiEdit",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "node -e \"const{execSync}=require('child_process');const fs=require('fs');const path=require('path');const cwd=process.cwd();const findVenv=()=>{for(const n of['.venv','venv','.uv']){const p=path.join(cwd,n,process.platform==='win32'?'Scripts/python.exe':'bin/python');if(fs.existsSync(p))return p}return null};const cmdExists=c=>{try{execSync((process.platform==='win32'?'where ':'which ')+c,{stdio:'pipe'});return true}catch{return false}};const ensureVenv=(tool)=>{const vp=path.join(cwd,'.venv');const py=path.join(vp,process.platform==='win32'?'Scripts/python.exe':'bin/python');if(!fs.existsSync(py)){console.error('[dev-standards] Creating .venv...');if(cmdExists('uv')){try{execSync('uv venv \"'+vp+'\"',{stdio:'pipe',timeout:60000})}catch{execSync((process.platform==='win32'?'python':'python3')+' -m venv \"'+vp+'\"',{stdio:'pipe',timeout:60000})}}else{execSync((process.platform==='win32'?'python':'python3')+' -m venv \"'+vp+'\"',{stdio:'pipe',timeout:60000})}}try{execSync('\"'+py+'\" -m '+tool+' --version',{stdio:'pipe',timeout:5000})}catch{console.error('[dev-standards] Installing '+tool+'...');if(cmdExists('uv')){execSync('uv pip install '+tool+' --python \"'+py+'\"',{stdio:'pipe',timeout:120000})}else{const pip=path.join(vp,process.platform==='win32'?'Scripts/pip.exe':'bin/pip');execSync('\"'+pip+'\" install '+tool,{stdio:'pipe',timeout:120000})}}return py};let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{if(!d||!d.trim()){console.log(d||'');return}const i=JSON.parse(d);const p=i.tool_input?.file_path||i.tool_input?.files?.[0]?.file_path;if(!p||typeof p!=='string'){console.log(d);return}const resolved=path.resolve(p);const ext=path.extname(resolved).slice(1).toLowerCase();let warnings=[];if(['js','jsx','ts','tsx'].includes(ext)){try{execSync('npx eslint '+JSON.stringify(resolved)+' --format compact 2>&1',{timeout:15000})}catch(e){const out=e.stdout?.toString()||e.stderr?.toString()||'';if(out.includes('error')||out.includes('warning')){warnings.push(out.split('\\n').find(l=>l.includes('error')||l.includes('warning'))||'lint issues')}}}if(ext==='py'){try{const py=findVenv()||ensureVenv('ruff');const cmd='\"'+py+'\" -m ruff check '+JSON.stringify(resolved)+' 2>&1';execSync(cmd,{timeout:15000})}catch(e){const out=e.stdout?.toString()||e.stderr?.toString()||'';if(out.trim()&&!out.includes('All checks passed')){warnings.push(out.split('\\n')[0])}}}if(warnings.length){console.error('[Lint] '+warnings.join('; '))}console.log(d)}catch(e){console.log(d||'')}})\"",
-          "timeout": 150
-        }
-      ],
-      "description": "Run linting (venv-aware, auto-creates venv with uv for Python)"
-    },
-    {
-      "matcher": "Edit|Write|MultiEdit|Bash",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "node -e \"const os=require('os');const fs=require('fs');const path=require('path');const logDir=path.join(os.homedir(),'.claude','logs');try{fs.mkdirSync(logDir,{recursive:true})}catch(e){}try{fs.appendFileSync(path.join(logDir,'session.log'),'['+new Date().toISOString()+'] TOOL_COMPLETE\\n')}catch(e){}let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(d))\"",
-          "timeout": 3
-        }
-      ],
-      "description": "Log tool completion for audit trail"
-    },
-    {
-      "matcher": "Edit|Write|MultiEdit|Bash",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "node -e \"const{execSync}=require('child_process');try{const status=execSync('git status --porcelain 2>/dev/null',{encoding:'utf8',timeout:3000});const count=status.trim().split('\\n').filter(l=>l).length;if(count>10){console.error('[Git Hygiene] Warning: '+count+' uncommitted changes. Consider committing soon.')}}catch{}let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(d))\"",
-          "timeout": 5
-        }
-      ],
-      "description": "Warn when uncommitted changes exceed threshold"
-    },
-    {
-      "matcher": "Edit|Write|MultiEdit",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "node -e \"const fs=require('fs');const path=require('path');const stateFile=path.join(process.cwd(),'tmp','.orchestrator-state.json');let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{if(fs.existsSync(stateFile)){const state=JSON.parse(fs.readFileSync(stateFile,'utf8'));if(state.orchestrator?.git?.enabled){const input=JSON.parse(d||'{}');const file=input.tool_input?.file_path||input.tool_input?.files?.[0]?.file_path;if(file){if(!state.orchestrator.changedFiles)state.orchestrator.changedFiles=[];if(!state.orchestrator.changedFiles.includes(file)){state.orchestrator.changedFiles.push(file);fs.writeFileSync(stateFile,JSON.stringify(state,null,2))}}}}}catch{}console.log(d)})\"",
-          "timeout": 5
-        }
-      ],
-      "description": "Track files changed during orchestrator workflow"
-    },
-    {
-      "matcher": "*",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "node -e \"const fs=require('fs');const path=require('path');const cwd=process.cwd();const tmpDir=path.join(cwd,'tmp');try{const files=fs.readdirSync(cwd).filter(f=>f.startsWith('tmpclaude'));if(files.length>0){fs.mkdirSync(tmpDir,{recursive:true});for(const f of files){try{fs.renameSync(path.join(cwd,f),path.join(tmpDir,f))}catch{try{fs.unlinkSync(path.join(cwd,f))}catch{}}}}}catch{}let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(d))\"",
-          "timeout": 3
-        }
-      ],
-      "description": "Clean up tmpclaude-* temp files from root to tmp/"
-    }
-  ],
-
-  "Stop": [
-    {
-      "matcher": "*",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "node -e \"const{execSync}=require('child_process');try{const status=execSync('git status --porcelain 2>/dev/null',{encoding:'utf8',timeout:3000});const lines=status.trim().split('\\n').filter(l=>l);if(lines.length>0){console.log(JSON.stringify({decision:'block',reason:'Cannot end session with '+lines.length+' uncommitted changes. Please commit or stash changes first.',uncommitted_files:lines.slice(0,10)}))}else{console.log(JSON.stringify({decision:'allow'}))}}catch(e){console.log(JSON.stringify({decision:'allow'}))}\"",
-          "timeout": 5
-        }
-      ],
-      "description": "Block session end if uncommitted changes exist"
-    },
-    {
-      "matcher": "*",
-      "hooks": [
-        {
-          "type": "prompt",
-          "prompt": "Before completing, verify: (1) Have changes been tested? (2) Are changes running in the target environment (not just written to disk)? (3) Has the original objective been validated as achieved? (4) Are there any type errors or lint warnings to address? If any verification is incomplete, continue with the remaining steps. Only respond 'complete' when all verifications pass."
-        }
-      ],
-      "description": "Validation checkpoint including type/lint verification"
-    },
-    {
-      "matcher": "*",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "node -e \"const os=require('os');const fs=require('fs');const path=require('path');const logDir=path.join(os.homedir(),'.claude','logs');try{fs.mkdirSync(logDir,{recursive:true})}catch(e){}try{fs.appendFileSync(path.join(logDir,'session.log'),'['+new Date().toISOString()+'] TASK_COMPLETE\\n')}catch(e){}\"",
-          "timeout": 3
-        }
-      ],
-      "description": "Log task completion"
-    },
-    {
-      "matcher": "*",
-      "hooks": [
-        {
-          "type": "command",
-          "command": "node -e \"const fs=require('fs');const path=require('path');const cwd=process.cwd();const tmpDir=path.join(cwd,'tmp');try{const files=fs.readdirSync(cwd).filter(f=>f.startsWith('tmpclaude'));if(files.length>0){fs.mkdirSync(tmpDir,{recursive:true});for(const f of files){try{fs.renameSync(path.join(cwd,f),path.join(tmpDir,f))}catch{try{fs.unlinkSync(path.join(cwd,f))}catch{}}}}}catch{}\"",
-          "timeout": 3
-        }
-      ],
-      "description": "Clean up tmpclaude-* temp files from root to tmp/"
-    }
-  ],
-
-  "SubagentStop": [
-    {
-      "matcher": "*",
-      "hooks": [
-        {
-          "type": "prompt",
-          "prompt": "Provide a concise summary (under 100 words) of: (1) What was accomplished, (2) Key findings or issues discovered, (3) Any recommendations for the main agent."
-        }
-      ],
-      "description": "Ensure subagents provide actionable summaries"
+      "description": "Persist session state to memory dir on session end"
     }
   ],
 
@@ -241,11 +45,104 @@
       "hooks": [
         {
           "type": "command",
-          "command": "node -e \"const os=require('os');const fs=require('fs');const path=require('path');const logDir=path.join(os.homedir(),'.claude','logs');try{fs.mkdirSync(logDir,{recursive:true})}catch(e){}const cwd=process.cwd();try{fs.appendFileSync(path.join(logDir,'session.log'),'['+new Date().toISOString()+'] COMPACT in '+cwd+'\\n')}catch(e){}\"",
-          "timeout": 3
+          "command": "uv run python -m hooks.pre_compact",
+          "timeout": 15
         }
       ],
-      "description": "Log compaction events"
+      "description": "Snapshot session state before CC compacts the transcript"
+    }
+  ],
+
+  "PostCompact": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.post_compact",
+          "timeout": 15
+        }
+      ],
+      "description": "Verify snapshot exists and drop stale .context_pct cache after compaction"
+    }
+  ],
+
+  "UserPromptSubmit": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.create_feature_branch",
+          "timeout": 5
+        },
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.context_budget",
+          "timeout": 5
+        }
+      ],
+      "description": "Auto-cut feature branch on protected HEAD, gate on context budget"
+    }
+  ],
+
+  "PreToolUse": [
+    {
+      "matcher": "Edit|Write|MultiEdit",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.branch_protection",
+          "timeout": 5
+        },
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.pre_write_secret_scan",
+          "timeout": 5
+        }
+      ],
+      "description": "Block edits on protected branches and writes containing known secret patterns"
+    },
+    {
+      "matcher": "Bash",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.dangerous_command_block",
+          "timeout": 5
+        }
+      ],
+      "description": "Block Bash commands matching destructive patterns"
+    }
+  ],
+
+  "PostToolUse": [
+    {
+      "matcher": "Edit|Write|MultiEdit",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.post_edit_lint",
+          "timeout": 10
+        },
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.post_auto_format",
+          "timeout": 10
+        }
+      ],
+      "description": "Run profile-driven linter and formatter on edited files (non-blocking)"
+    },
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.post_tool_failure",
+          "timeout": 10
+        }
+      ],
+      "description": "Append failed tool invocations to the rolling error log"
     }
   ]
 }
