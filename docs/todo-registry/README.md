@@ -56,7 +56,7 @@ A future hook (Phase D or later) will validate: no PR merges with unresolved blo
 
 ### Open
 
-_(none)_
+- [TR-0002](TR-0002-standardize-uv-across-framework-outputs.md) — standardize `uv run` across framework outputs and add uv-env management agents (`operate-uv-env-initializer`, `operate-uv-dep-manager`, `maintain-uv-env-doctor`)
 
 ### Recently closed
 
