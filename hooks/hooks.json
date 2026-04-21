@@ -19,9 +19,14 @@
           "type": "command",
           "command": "uv run python -m hooks.session_start",
           "timeout": 15
+        },
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.session_start_gitignore_audit",
+          "timeout": 10
         }
       ],
-      "description": "Restore session state and inject additionalContext from memory dir"
+      "description": "Restore session state, inject additionalContext, and audit .gitignore for critical patterns"
     }
   ],
 
@@ -129,9 +134,14 @@
           "type": "command",
           "command": "uv run python -m hooks.post_auto_format",
           "timeout": 10
+        },
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.post_edit_doc_size",
+          "timeout": 10
         }
       ],
-      "description": "Run profile-driven linter and formatter on edited files (non-blocking)"
+      "description": "Run profile-driven linter and formatter, enforce doc size limits on markdown files"
     },
     {
       "matcher": "*",

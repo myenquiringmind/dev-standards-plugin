@@ -1,0 +1,25 @@
+{
+  "default": 200,
+  "patterns": [
+    {
+      "glob": "docs/decision-records/v2-architecture-planning-session.md",
+      "limit": -1,
+      "reason": "Archived canonical planning session — historical artifact, not runtime context"
+    },
+    {
+      "glob": "**/CHANGELOG.md",
+      "limit": -1,
+      "reason": "Changelogs grow unboundedly by design"
+    },
+    {
+      "glob": "docs/**/*.md",
+      "limit": 200,
+      "reason": "Architectural docs must stay surgical per docs/CLAUDE.md"
+    },
+    {
+      "glob": "**/*.md",
+      "limit": 300,
+      "reason": "Non-docs markdown (READMEs, inline guides) — slightly more generous"
+    }
+  ]
+}
