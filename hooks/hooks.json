@@ -115,9 +115,14 @@
           "type": "command",
           "command": "uv run python -m hooks.dangerous_command_block",
           "timeout": 5
+        },
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.pre_commit_cli_gate",
+          "timeout": 5
         }
       ],
-      "description": "Block Bash commands matching destructive patterns"
+      "description": "Block Bash commands matching destructive patterns and commits without valid validation stamps"
     }
   ],
 
