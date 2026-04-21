@@ -144,9 +144,14 @@
           "type": "command",
           "command": "uv run python -m hooks.post_edit_doc_size",
           "timeout": 10
+        },
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.session_checkpoint",
+          "timeout": 15
         }
       ],
-      "description": "Run profile-driven linter and formatter, enforce doc size limits on markdown files"
+      "description": "Run profile-driven linter and formatter, enforce doc size limits on markdown files, auto-checkpoint session state"
     },
     {
       "matcher": "*",
