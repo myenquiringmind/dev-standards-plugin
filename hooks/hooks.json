@@ -120,9 +120,14 @@
           "type": "command",
           "command": "uv run python -m hooks.pre_commit_cli_gate",
           "timeout": 5
+        },
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.pre_commit_secret_scan",
+          "timeout": 10
         }
       ],
-      "description": "Block Bash commands matching destructive patterns and commits without valid validation stamps"
+      "description": "Block Bash commands matching destructive patterns, commits without valid validation stamps, and commits whose staged diff adds known-secret patterns"
     }
   ],
 
