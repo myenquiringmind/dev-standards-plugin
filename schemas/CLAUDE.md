@@ -11,9 +11,14 @@ You are working in the schemas directory. Schemas are JSON Schema draft-2020-12 
 - `agent-frontmatter.schema.json` — validates agent markdown frontmatter, including the `tier` field for R/R/W enforcement
 - `profile.schema.json` — validates language profile files
 
-### Report schemas (Phase 1+)
+### Report schemas
 
-`schemas/reports/` will hold JSON Schemas for scanner report outputs (produced by R-tier agents in Phase 3+). Phase 1 bootstrap includes `transcript-todo-extraction.schema.json` and `project-state.schema.json`.
+`schemas/reports/` holds JSON Schemas for agent/hook report outputs. Two schemas shipped in Phase 1:
+
+- `project-state.schema.json` — produced by `discover-project-state-classifier` during `/setup`. Classifies the working directory as greenfield / growing-green / brownfield.
+- `transcript-todo-extraction.schema.json` — produced by `closed-loop-transcript-todo-extractor` after every `SubagentStop`. Captures deferred items from the subagent's narrative.
+
+Phase 3+ adds scanner report outputs from the brownfield scanner pipeline (codebase / database / api scanners).
 
 ### Contract schemas (future)
 
