@@ -1,124 +1,85 @@
-# Setup Command
+---
+context: fork
+model: sonnet
+allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Agent
+argument-hint: (no arguments)
+description: First-run project configuration. Classifies the project state, runs the interactive wizard, writes .language_profile.json and config/user-config.json.
+phase: discover
+---
 
-Initialize or verify project configuration for dev-standards plugin.
+# /setup — configure the framework for this project
 
-## What This Does
+Run once at project start. Composes two Phase 1 agents — `discover-project-state-classifier` and `discover-setup-wizard` — and writes the two config files the rest of the framework reads at runtime.
 
-1. **Detects project type** (Python, Node.js, Go, Rust)
-2. **Creates/verifies venv** for Python projects (using uv if available)
-3. **Installs plugin dependencies** (ruff, mypy for Python; prettier, eslint for JS/TS)
-4. **Creates CLAUDE.md** if missing (project memory)
-5. **Verifies tooling** is available
+This command is idempotent in the **refuse** sense, not the **overwrite** sense: re-running it on an already-configured project surfaces the existing config and exits 0 without changes. Re-configuration is a deliberate act (remove the files, then re-run) — never a silent re-wiring.
 
-## Venv Setup (Python Projects)
+## Procedure
 
-For Python projects, this command will:
+1. **Check for existing configuration.** If `.language_profile.json` or `config/user-config.json` already exists at the project root, print:
 
-1. Check if `.venv`, `venv`, or `.uv` exists
-2. If not, create `.venv` using:
-   - `uv venv` (preferred, if uv is installed)
-   - `python -m venv` (fallback)
-3. Install plugin dependencies into the venv:
-   - `ruff` (formatter + linter)
-   - `mypy` (type checker)
+   ```
+   [setup] already configured:
+     - .language_profile.json
+     - config/user-config.json
+   Remove these files (or /setup --force once that lands) to re-run.
+   ```
 
-```bash
-# What happens under the hood:
-uv venv .venv                    # Create venv
-uv pip install ruff mypy         # Install deps
-```
+   Exit 0. Do not proceed. This is a contract with the user: `/setup` does not overwrite.
 
-## Node.js Setup
+2. **Classify the project state.** Invoke `discover-project-state-classifier` via the `Agent` tool. The agent scans the working directory and emits a JSON report matching `schemas/reports/project-state.schema.json`:
+   - `classification`: `greenfield` | `growing-green` | `brownfield`
+   - `confidence`: `high` | `medium` | `low`
+   - `signals`: source/test file counts, CI detection, lockfiles, git age, languages detected
 
-For Node.js/TypeScript projects:
+   Surface the report's `classification` + `confidence` to the user in a one-line summary:
 
-```bash
-# Installs dev dependencies if not present:
-npm install --save-dev prettier eslint typescript
-```
+   ```
+   [setup] detected: <classification> (confidence: <confidence>)
+   ```
 
-## Project Detection
+3. **Run the wizard.** Invoke `discover-setup-wizard` via the `Agent` tool. Pass the classifier's report on stdin (or as a JSON fixture file — the wizard accepts either). The wizard:
+   - Asks 3-6 questions via `AskUserQuestion` (language profiles, feature packs, commit-gate strictness; optional confirmation if classifier `confidence: low`).
+   - Validates user answers against available profiles and packs.
+   - Writes `.language_profile.json` and `config/user-config.json` via `hooks._os_safe.atomic_write`.
+   - Emits a `Setup complete — <N> profiles active, <M> packs enabled.` line.
 
-```
-Detect and configure based on:
-- pyproject.toml / requirements.txt / *.py → Python project
-- package.json → Node.js/TypeScript project
-- go.mod → Go project
-- Cargo.toml → Rust project
-```
+4. **Confirm.** Read the two written files back and show a summary to the user:
 
-## CLAUDE.md Template
+   ```
+   [setup] .language_profile.json:
+     language: python
+     overrides: (none)
+   [setup] config/user-config.json:
+     activePacks: [python, patterns, security, document]
+   [setup] strictness: strict
+   [setup] done. Run /validate next.
+   ```
 
-If CLAUDE.md doesn't exist, create one:
+   Do not modify either file in this final step — the wizard is the sole writer. Your job is to display, not mutate.
 
-```markdown
-# [Project Name]
+## Error paths
 
-## Quick Reference
-- **Test**: [detected test command]
-- **Lint**: [detected lint command]
-- **Format**: [detected format command]
-- **Build**: [detected build command]
+- **Classifier returns an error** (corrupted git, unreadable files, OSError). Surface the error and exit 1. Do not fall back to defaults — a classifier error means the wizard cannot pick reasonable defaults, and silently proceeding would misconfigure the project.
+- **Wizard returns an error** (user cancelled, invalid answer unfixable). Surface the error and exit 1. Files may or may not have been partially written; print a recovery hint naming the exact files to check / remove.
+- **Wizard writes only one of the two files.** Print a warning: "config partially written — remove `<written file>` and re-run /setup". Exit 1. Do not leave the project in a half-configured state.
 
-## Project Structure
-- `src/` - [description]
-- `tests/` - [description]
+## Do not
 
-## Venv
-- Location: `.venv/`
-- Created with: [uv/python -m venv]
-- Dependencies: ruff, mypy
+- Do not skip the classifier. The wizard's question defaults come from the classifier report; skipping to the wizard means asking the user questions whose defaults are guesses. Classifier → wizard is the pipeline; keep it ordered.
+- Do not prompt for secrets. The wizard does not ask for API keys, endpoints, or credentials. Those belong in local-only files outside the framework's config tree.
+- Do not write to any file the wizard does not explicitly claim to write. `/setup` orchestrates the wizard; it is not itself a config writer.
+- Do not run long-running tasks first. If a slow scan (graph-registry rebuild, full project walk) is ever needed here, invoke `meta-session-planner` — but Phase 1 setup is fast enough that the planner adds no value. Phase 3+ revisit.
 
-## Key Conventions
-- [coding conventions used]
-- [naming conventions]
-```
+## Final check
 
-## Output
+Before the done line, verify:
+- [ ] `.language_profile.json` exists and is valid JSON.
+- [ ] `config/user-config.json` exists and contains an `activePacks` array.
+- [ ] Neither file contains a secret (quick regex scan: `sk-`, `AKIA`, `-----BEGIN`).
+- [ ] The wizard reported `Setup complete`.
 
-```markdown
-## Project Setup Complete
+If any box is unchecked, print an error and exit 1 — do not declare `/setup` done when the output is inconsistent.
 
-### Detected Stack
-- Language: Python
-- Package Manager: uv (or pip)
-- Venv: .venv/ (created/existing)
+## Phase 1 note
 
-### Plugin Dependencies
-| Tool | Version | Status |
-|------|---------|--------|
-| ruff | X.Y.Z | ✅ Installed |
-| mypy | X.Y.Z | ✅ Installed |
-
-### Project Dependencies
-| Tool | Command | Status |
-|------|---------|--------|
-| Formatter | `ruff format` | ✅ |
-| Linter | `ruff check` | ✅ |
-| Type Checker | `mypy` | ✅ |
-| Tests | `pytest` | ⚠️ Not detected |
-
-### Files Created
-- `.venv/` - Python virtual environment
-- `CLAUDE.md` - Project configuration
-
-### Next Steps
-- Add `pytest` for testing: `uv pip install pytest`
-- Run `/validate` to check project health
-```
-
-## Usage
-
-```
-/setup                    # Auto-detect and configure
-/setup --python           # Force Python project setup
-/setup --node             # Force Node.js project setup
-/setup --no-venv          # Skip venv creation
-```
-
-## Notes
-
-- The venv is created in the project root as `.venv/`
-- All Python hooks automatically use this venv
-- If uv is not installed, falls back to pip
-- Existing venvs are detected and reused
+The Phase 1 wizard offers python, javascript, or "none" for language profiles; later phases add more. The pack list the wizard exposes is the set that has at least one agent implemented today — not the full 12-pack catalog declared in `schemas/agent-frontmatter.schema.json`. The wizard reads that inventory at runtime, so this command does not need to be updated as packs come online; the wizard is the single source of truth for \"what can the user enable right now\".
