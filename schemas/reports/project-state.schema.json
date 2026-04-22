@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-standards-plugin/schemas/reports/project-state.schema.json",
+  "title": "Project State Classification Report",
+  "description": "Produced by discover-project-state-classifier during /setup and re-runnable at any time. Classifies the working directory into one of three maturity bands so downstream commands can pick appropriate defaults (stricter validation for brownfield, lighter for greenfield).",
+  "type": "object",
+  "required": ["classification", "signals", "generated_at", "project_dir"],
+  "additionalProperties": false,
+  "properties": {
+    "classification": {
+      "type": "string",
+      "enum": ["greenfield", "growing-green", "brownfield"],
+      "description": "greenfield = no committed source; growing-green = <30 non-test source files + no CI yet + no established conventions; brownfield = established codebase with existing conventions and/or CI."
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low"],
+      "description": "low fires when signals contradict (e.g. large file count but no CI, or small codebase with a mature test suite). /setup should ask the user to confirm on low."
+    },
+    "signals": {
+      "type": "object",
+      "required": ["source_file_count", "has_ci", "has_tests", "first_commit_age_days"],
+      "additionalProperties": false,
+      "properties": {
+        "source_file_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of non-test source files across detected languages."
+        },
+        "test_file_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "has_ci": {
+          "type": "boolean",
+          "description": "True if .github/workflows/, .gitlab-ci.yml, or similar exists."
+        },
+        "has_tests": {
+          "type": "boolean"
+        },
+        "has_lockfiles": {
+          "type": "boolean",
+          "description": "True if uv.lock / package-lock.json / yarn.lock / pnpm-lock.yaml / Cargo.lock / go.sum is present — a signal of established dependency discipline."
+        },
+        "first_commit_age_days": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Days since the repo's first commit. 0 for a fresh git init with no commits."
+        },
+        "total_commits": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "languages_detected": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "Profile IDs detected by _profiles.detect_language, e.g. ['python', 'javascript']."
+        }
+      }
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "project_dir": {
+      "type": "string",
+      "minLength": 1
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Human-readable observations — contradictory signals, user-visible heuristics, edge cases."
+    }
+  }
+}
