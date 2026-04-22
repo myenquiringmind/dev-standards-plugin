@@ -67,7 +67,7 @@ exclude = ["tmp/", ".venv/", "node_modules/", "lib/"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-testpaths = ["hooks/tests", "tests/python"]
+testpaths = ["hooks/tests", "scripts/tests"]
 addopts = "-ra -q --strict-markers --strict-config"
 filterwarnings = [
     "error",
