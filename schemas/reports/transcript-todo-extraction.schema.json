@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-standards-plugin/schemas/reports/transcript-todo-extraction.schema.json",
+  "title": "Transcript Todo Extraction Report",
+  "description": "Produced by closed-loop-transcript-todo-extractor after every SubagentStop. Captures deferred items promised in the subagent's output so they don't evaporate with the subagent's context.",
+  "type": "object",
+  "required": ["subagent", "session_id", "extracted_at", "items"],
+  "additionalProperties": false,
+  "properties": {
+    "subagent": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Agent name that produced the transcript being scanned."
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "CC session ID passed through the SubagentStop hook payload."
+    },
+    "extracted_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "items": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/TodoItem" },
+      "description": "Deferred items extracted. Empty array is a valid, expected result — not every subagent defers anything."
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Human-readable observations — ambiguous phrasing flagged, patterns the extractor wants to learn."
+    }
+  },
+  "$defs": {
+    "TodoItem": {
+      "type": "object",
+      "required": ["content", "kind", "confidence", "source_excerpt"],
+      "additionalProperties": false,
+      "properties": {
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "Imperative-mood description of the deferred action. 'Fix the broken XYZ test' not 'The XYZ test is broken'."
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["tier-2-sidecar", "tier-3-registry", "tier-4-escalate", "suggestion"],
+          "description": "Graduated-response tier (per .claude/rules/stewardship-ratchet.md) the extractor believes the item belongs to. 'suggestion' is a non-tier informational item — a nice-to-have that the subagent happened to mention."
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low"],
+          "description": "How strongly the extractor asserts this is a real deferred item and not a rhetorical aside."
+        },
+        "source_excerpt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000,
+          "description": "Verbatim snippet of the subagent output the extractor interpreted — makes the extraction auditable."
+        },
+        "related_files": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "File paths the extractor inferred are involved. Optional."
+        }
+      }
+    }
+  }
+}
