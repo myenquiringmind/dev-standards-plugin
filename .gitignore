@@ -82,3 +82,6 @@ temp/
 
 # Orchestrator state (local only)
 tmp/.orchestrator-state.json
+
+# Derived artifact — rebuilt by scripts/build_graph_registry.py
+config/graph-registry.json
