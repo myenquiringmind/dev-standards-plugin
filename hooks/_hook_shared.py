@@ -44,22 +44,24 @@ HANDOFF_STEPS: str = (
 )
 
 # ---------------------------------------------------------------------------
-# Validation step tuples — single source of truth (Phase 1 narrowed set)
+# Validation step tuples — single source of truth
 # ---------------------------------------------------------------------------
 #
 # Each tuple lists the *currently available* canonical validation steps for
 # its gate. A stamp must cover every step here (superset check in
 # ``pre_commit_cli_gate.py``).
 #
-# Later phases add more steps as the corresponding agents land:
+# Growth history:
 #
-# * Phase 2 adds ``agent-arch-doc-reviewer`` to ``AGENT_VALIDATION_STEPS``.
-# * Phase 6 adds the ``py-*`` stack agents (solid-dry, security, doc-checker,
-#   arch-doc, code-simplifier, tdd-process) to ``PY_VALIDATION_STEPS`` and
-#   the ``fe-*`` stack agents to ``FE_VALIDATION_STEPS``.
+# * Phase 1 shipped the narrowed initial sets.
+# * Phase 2 added ``agent-arch-doc-reviewer`` to ``AGENT_VALIDATION_STEPS``.
+# * Phase 6 will add the ``py-*`` stack agents (solid-dry, security,
+#   doc-checker, arch-doc, code-simplifier, tdd-process) to
+#   ``PY_VALIDATION_STEPS`` and the ``fe-*`` stack agents to
+#   ``FE_VALIDATION_STEPS``.
 #
-# The narrow-now-grow-later approach keeps Phase 1 stamps honest (they cover
-# exactly what exists) rather than carrying ``not-yet-implemented`` placeholder
+# The narrow-now-grow-later approach keeps stamps honest (they cover exactly
+# what exists) rather than carrying ``not-yet-implemented`` placeholder
 # state through the schema. See project-canonical-step-phase-gap memory.
 
 #: Python code validation gate — Phase 1 narrowed set.
@@ -78,8 +80,14 @@ FE_VALIDATION_STEPS: tuple[str, ...] = (
     "vitest",
 )
 
-#: Agent infrastructure validation gate — Phase 1 narrowed set.
-AGENT_VALIDATION_STEPS: tuple[str, ...] = ("command-composition-reviewer",)
+#: Agent infrastructure validation gate — Phase 1-2 set.
+#:
+#: Phase 2 added ``agent-arch-doc-reviewer`` (first tuple growth under the
+#: narrow-now-grow-later plan) alongside the Phase 1 ``command-composition-reviewer``.
+AGENT_VALIDATION_STEPS: tuple[str, ...] = (
+    "agent-arch-doc-reviewer",
+    "command-composition-reviewer",
+)
 
 # ---------------------------------------------------------------------------
 # Cache intervals (seconds)
