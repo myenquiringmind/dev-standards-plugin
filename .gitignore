@@ -85,3 +85,20 @@ tmp/.orchestrator-state.json
 
 # Derived artifact — rebuilt by scripts/build_graph_registry.py
 config/graph-registry.json
+
+# Ephemeral validation stamps — written by /validate, consumed by
+# pre_commit_cli_gate. 15-minute TTL, branch-scoped.
+.validation_stamp
+.frontend_validation_stamp
+.agent_validation_stamp
+.db_validation_stamp
+.api_validation_stamp
+
+# Context-usage cache — written by statusline.py, read by context_budget.py
+.claude/.context_pct
+
+# Archived session state — produced by session_start.py after reinjection
+**/memory/session-state.md.injected
+
+# Session-checkpoint counter state
+**/memory/session-checkpoint.state.json
