@@ -8,6 +8,7 @@ Task-oriented documentation for specific goals. Each guide answers "I want to do
 |---|---|---|
 | [Getting started](./getting-started.md) | New contributors to `dev-standards-plugin` | Available |
 | [Multi-branch coordination](./multi-branch-coordination.md) | Agents and humans working across interlocking PRs | Available |
+| [Wiring up the statusline](./statusline-wiring.md) | Users enabling the context-percentage status line | Available |
 | Developing a new agent | Contributors adding agents | Stub (Phase 2+) |
 | Developing a new hook | Contributors adding hooks | Stub (Phase 2+) |
 | Running validation | Users and contributors | Stub (Phase 1+) |
