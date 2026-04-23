@@ -179,6 +179,11 @@
         },
         "background": {
           "type": "boolean"
+        },
+        "tier": {
+          "type": "string",
+          "enum": ["read", "reason", "write", "read-reason-write"],
+          "description": "R/R/W tier propagated from the agent's frontmatter. Read by runtime enforcement hooks (pre_tool_use_tier_enforcer, pre_bash_tier_guard) to decide whether a subagent's attempted tool use is within its declared tier."
         }
       }
     },

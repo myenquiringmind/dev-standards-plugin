@@ -127,6 +127,7 @@ class TestDiscoverAgents:
         assert node["category"] == "meta"
         assert node["metadata"]["agent_type"] == "blocking"  # reason tier + meta- name
         assert node["metadata"]["tools"] == ["Read", "Bash", "Glob", "Grep"]
+        assert node["metadata"]["tier"] == "reason"  # propagated from frontmatter
 
 
 class TestDiscoverHooks:
