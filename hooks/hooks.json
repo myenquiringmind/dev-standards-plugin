@@ -93,7 +93,7 @@
 
   "PreToolUse": [
     {
-      "matcher": "Edit|Write|MultiEdit",
+      "matcher": "Edit|Write|MultiEdit|NotebookEdit",
       "hooks": [
         {
           "type": "command",
@@ -104,9 +104,14 @@
           "type": "command",
           "command": "uv run python -m hooks.pre_write_secret_scan",
           "timeout": 5
+        },
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.pre_tool_use_tier_enforcer",
+          "timeout": 5
         }
       ],
-      "description": "Block edits on protected branches and writes containing known secret patterns"
+      "description": "Block edits on protected branches, writes containing known secret patterns, and mutating tool use by read/reason tier subagents"
     },
     {
       "matcher": "Bash",

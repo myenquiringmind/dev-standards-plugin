@@ -103,6 +103,7 @@ def discover_agents(root: Path) -> list[dict[str, Any]]:
                     "maxTurns": int(fm.get("maxTurns", 10)),
                     **({"isolation": fm["isolation"]} if "isolation" in fm else {}),
                     **({"background": fm["background"]} if "background" in fm else {}),
+                    **({"tier": fm["tier"]} if "tier" in fm else {}),
                 },
             }
         )
