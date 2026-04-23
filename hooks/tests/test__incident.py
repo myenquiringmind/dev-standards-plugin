@@ -36,9 +36,7 @@ class TestUlidGeneration:
         ulids = {_incident._generate_ulid() for _ in range(1000)}
         assert len(ulids) == 1000  # probability of collision in 80-bit random < 1e-21
 
-    def test_ulids_sort_lexicographically_by_time(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_ulids_sort_lexicographically_by_time(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # Deterministic clock: feed two timestamps 1s apart. The timestamp
         # dominates the leading 10 characters, so even if the random tail
         # of the earlier ULID is all-Z, the later one still sorts after.
