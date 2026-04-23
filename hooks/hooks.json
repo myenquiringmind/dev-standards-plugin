@@ -123,6 +123,11 @@
         },
         {
           "type": "command",
+          "command": "uv run python -m hooks.pre_bash_tier_guard",
+          "timeout": 5
+        },
+        {
+          "type": "command",
           "command": "uv run python -m hooks.pre_commit_cli_gate",
           "timeout": 5
         },
@@ -132,7 +137,7 @@
           "timeout": 10
         }
       ],
-      "description": "Block Bash commands matching destructive patterns, commits without valid validation stamps, and commits whose staged diff adds known-secret patterns"
+      "description": "Block Bash commands matching destructive patterns, restrict read/reason-tier subagents to a read-only allowlist, gate commits on validation stamps, and scan staged diffs for secrets"
     }
   ],
 
