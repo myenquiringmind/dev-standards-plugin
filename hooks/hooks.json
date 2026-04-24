@@ -44,6 +44,20 @@
     }
   ],
 
+  "StopFailure": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.stop_failure",
+          "timeout": 10
+        }
+      ],
+      "description": "Record a ULID-keyed incident when CC fires a StopFailure (never blocks)"
+    }
+  ],
+
   "SessionEnd": [
     {
       "matcher": "*",
