@@ -102,6 +102,15 @@ CHECKPOINT_INTERVAL_EVENTS: int = 5
 #: How often session_checkpoint writes state (seconds).
 CHECKPOINT_INTERVAL_SECONDS: int = 900  # 15 minutes
 
+#: Staleness threshold for ``checkpoint_gate``. Subagent Bash is blocked when
+#: the gap between ``now`` and ``session-checkpoint.state.json::last_write_ts``
+#: exceeds this — the session has been doing Bash-only work (no Edit/Write
+#: firing PostToolUse) long enough that session-state.md is certainly stale
+#: and continuing without a forced checkpoint or ``/handoff`` risks losing
+#: context on a crash. Sized at two ``CHECKPOINT_INTERVAL_SECONDS`` so one
+#: missed interval is tolerated before the gate fires.
+CHECKPOINT_STALENESS_THRESHOLD_SECONDS: int = 2 * CHECKPOINT_INTERVAL_SECONDS  # 30 minutes
+
 # ---------------------------------------------------------------------------
 # Protected branches
 # ---------------------------------------------------------------------------
