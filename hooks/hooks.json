@@ -128,6 +128,11 @@
         },
         {
           "type": "command",
+          "command": "uv run python -m hooks.checkpoint_gate",
+          "timeout": 5
+        },
+        {
+          "type": "command",
           "command": "uv run python -m hooks.pre_commit_cli_gate",
           "timeout": 5
         },
@@ -137,7 +142,7 @@
           "timeout": 10
         }
       ],
-      "description": "Block Bash commands matching destructive patterns, restrict read/reason-tier subagents to a read-only allowlist, gate commits on validation stamps, and scan staged diffs for secrets"
+      "description": "Block Bash commands matching destructive patterns, restrict read/reason-tier subagents to a read-only allowlist, block subagent Bash when session-state has not checkpointed in 30 min, gate commits on validation stamps, and scan staged diffs for secrets"
     }
   ],
 
