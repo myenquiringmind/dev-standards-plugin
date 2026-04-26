@@ -30,6 +30,20 @@
     }
   ],
 
+  "Stop": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.stop_validation",
+          "timeout": 10
+        }
+      ],
+      "description": "Refuse Stop when the working tree has uncommitted changes; remediation is commit or [WIP] commit"
+    }
+  ],
+
   "SessionEnd": [
     {
       "matcher": "*",
