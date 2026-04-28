@@ -193,6 +193,20 @@
     }
   ],
 
+  "InstructionsLoaded": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.instructions_loaded",
+          "timeout": 10
+        }
+      ],
+      "description": "Emit telemetry naming which CLAUDE.md / rules files CC loaded; consumed by Phase 4 quality scorer"
+    }
+  ],
+
   "TaskCreated": [
     {
       "matcher": "*",
