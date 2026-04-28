@@ -174,6 +174,20 @@
     }
   ],
 
+  "TaskCreated": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.task_created",
+          "timeout": 10
+        }
+      ],
+      "description": "Bridge a CC TaskCreated event into the session-state Task Progress section"
+    }
+  ],
+
   "PostToolUse": [
     {
       "matcher": "Edit|Write|MultiEdit",
