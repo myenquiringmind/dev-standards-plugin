@@ -188,6 +188,20 @@
     }
   ],
 
+  "TaskCompleted": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.task_completed",
+          "timeout": 10
+        }
+      ],
+      "description": "Flip the matching - [ ] line in session-state Task Progress to - [x] when CC fires TaskCompleted"
+    }
+  ],
+
   "PostToolUse": [
     {
       "matcher": "Edit|Write|MultiEdit",
