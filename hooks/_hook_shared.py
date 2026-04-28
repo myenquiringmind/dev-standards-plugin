@@ -111,6 +111,13 @@ CHECKPOINT_INTERVAL_SECONDS: int = 900  # 15 minutes
 #: missed interval is tolerated before the gate fires.
 CHECKPOINT_STALENESS_THRESHOLD_SECONDS: int = 2 * CHECKPOINT_INTERVAL_SECONDS  # 30 minutes
 
+#: Age threshold for ``post_temp_file_cleanup`` — a ``tmpclaude-*`` file
+#: older than this in the project root is considered orphaned and removed
+#: on the next PostToolUse Edit/Write. Five minutes is long enough that
+#: in-flight CC tool calls cannot race against the sweeper but short enough
+#: that crashed tool calls do not leave debris around for a session.
+TMP_FILE_AGE_THRESHOLD_SECONDS: int = 300  # 5 minutes
+
 # ---------------------------------------------------------------------------
 # Protected branches
 # ---------------------------------------------------------------------------
