@@ -202,6 +202,20 @@
     }
   ],
 
+  "FileChanged": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.file_changed",
+          "timeout": 10
+        }
+      ],
+      "description": "Re-validate config/graph-registry.json and config/profiles/*.json against their schemas; advisory only"
+    }
+  ],
+
   "PostToolUse": [
     {
       "matcher": "Edit|Write|MultiEdit",
