@@ -24,9 +24,14 @@
           "type": "command",
           "command": "uv run python -m hooks.session_start_gitignore_audit",
           "timeout": 10
+        },
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.detect_language",
+          "timeout": 10
         }
       ],
-      "description": "Restore session state, inject additionalContext, and audit .gitignore for critical patterns"
+      "description": "Restore session state, inject additionalContext, audit .gitignore for critical patterns, and stamp .language_profile.json from config/profiles/*.json detection"
     }
   ],
 
