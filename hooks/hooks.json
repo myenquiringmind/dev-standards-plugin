@@ -118,9 +118,14 @@
           "type": "command",
           "command": "uv run python -m hooks.context_budget",
           "timeout": 5
+        },
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.phase_transition",
+          "timeout": 5
         }
       ],
-      "description": "Auto-cut feature branch on protected HEAD, gate on context budget"
+      "description": "Auto-cut feature branch on protected HEAD, gate on context budget, and update session-state ## Current Phase from prompt-text phase tokens"
     }
   ],
 
