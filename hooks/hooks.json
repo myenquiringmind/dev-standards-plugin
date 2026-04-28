@@ -174,6 +174,20 @@
     }
   ],
 
+  "PermissionDenied": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.permission_denied",
+          "timeout": 10
+        }
+      ],
+      "description": "Record a ULID-keyed incident when CC fires PermissionDenied (never blocks)"
+    }
+  ],
+
   "TaskCreated": [
     {
       "matcher": "*",
