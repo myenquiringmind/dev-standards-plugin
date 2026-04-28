@@ -258,9 +258,14 @@
           "type": "command",
           "command": "uv run python -m hooks.post_temp_file_cleanup",
           "timeout": 10
+        },
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.post_track_changed_files",
+          "timeout": 10
         }
       ],
-      "description": "Run profile-driven linter and formatter, enforce doc size limits on markdown files, auto-checkpoint session state, sweep orphaned tmpclaude-* files"
+      "description": "Run profile-driven linter and formatter, enforce doc size limits on markdown files, auto-checkpoint session state, sweep orphaned tmpclaude-* files, log every edited file path"
     },
     {
       "matcher": "*",
