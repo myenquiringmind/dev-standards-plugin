@@ -259,6 +259,20 @@
     }
   ],
 
+  "CwdChanged": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.cwd_changed",
+          "timeout": 10
+        }
+      ],
+      "description": "Force-refresh the .language_profile.json stamp when CC reports a cwd shift (monorepo navigation)"
+    }
+  ],
+
   "PostToolUse": [
     {
       "matcher": "Edit|Write|MultiEdit",
