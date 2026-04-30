@@ -203,6 +203,20 @@
     }
   ],
 
+  "SubagentStart": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.subagent_start",
+          "timeout": 10
+        }
+      ],
+      "description": "Emit telemetry naming the subagent and its registry-declared maxTurns budget; consumed by Phase 4 quality scorer"
+    }
+  ],
+
   "InstructionsLoaded": [
     {
       "matcher": "*",
