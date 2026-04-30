@@ -301,6 +301,34 @@
     }
   ],
 
+  "WorktreeCreate": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.worktree_lifecycle",
+          "timeout": 10
+        }
+      ],
+      "description": "Seed the new worktree's .language_profile.json from the source worktree"
+    }
+  ],
+
+  "WorktreeRemove": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.worktree_lifecycle",
+          "timeout": 10
+        }
+      ],
+      "description": "Clean up framework artifacts (.validation_stamp*, .language_profile.json) from the leaving worktree"
+    }
+  ],
+
   "PostToolUse": [
     {
       "matcher": "Edit|Write|MultiEdit",
