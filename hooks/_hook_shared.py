@@ -118,6 +118,12 @@ CHECKPOINT_STALENESS_THRESHOLD_SECONDS: int = 2 * CHECKPOINT_INTERVAL_SECONDS  #
 #: that crashed tool calls do not leave debris around for a session.
 TMP_FILE_AGE_THRESHOLD_SECONDS: int = 300  # 5 minutes
 
+#: How long a ``version_check`` result is reused before re-running the
+#: comparison. 24 hours is the spec value: long enough that SessionStart
+#: stays cheap on a busy day, short enough that a freshly-published
+#: marketplace update is surfaced within one work cycle.
+VERSION_CHECK_INTERVAL_SECONDS: int = 86_400  # 24 hours
+
 # ---------------------------------------------------------------------------
 # Protected branches
 # ---------------------------------------------------------------------------
