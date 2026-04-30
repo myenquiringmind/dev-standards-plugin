@@ -126,14 +126,23 @@ def _build_record(
     }
 
 
-def main() -> int:
-    read_hook_input()  # drain stdin even if we don't read fields
+def detect_and_stamp(project_dir: Path, *, force: bool = False) -> None:
+    """Detect the project's profile and write the stamp.
 
-    project_dir = get_project_dir()
+    Public entry point shared with ``cwd_changed`` and other hooks
+    that need to refresh the stamp outside SessionStart.
+
+    Args:
+        project_dir: Project root containing ``config/profiles/*.json``.
+        force: When ``True``, overwrite any existing
+            ``.language_profile.json``. When ``False`` (the default
+            and the SessionStart behaviour), an existing stamp is
+            preserved.
+    """
     target = project_dir / _TARGET_FILENAME
 
-    if target.exists():
-        return 0
+    if target.exists() and not force:
+        return
 
     result = _detect(project_dir)
     if result is None:
@@ -147,6 +156,10 @@ def main() -> int:
     except OSError as exc:
         print(f"[detect_language] could not write {target}: {exc}", file=sys.stderr)
 
+
+def main() -> int:
+    read_hook_input()  # drain stdin even if we don't read fields
+    detect_and_stamp(get_project_dir(), force=False)
     return 0
 
 
