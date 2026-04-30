@@ -273,6 +273,20 @@
     }
   ],
 
+  "ConfigChange": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.config_change",
+          "timeout": 10
+        }
+      ],
+      "description": "Invalidate on-disk caches (language-profile stamp, version-check state) when watched config files change"
+    }
+  ],
+
   "PostToolUse": [
     {
       "matcher": "Edit|Write|MultiEdit",
