@@ -1,0 +1,46 @@
+{
+  "$schema": "../../schemas/profile.schema.json",
+  "name": "typescript",
+  "priority": "P0",
+  "detection": {
+    "markers": ["tsconfig.json"],
+    "extensions": [".ts", ".tsx"]
+  },
+  "tools": {
+    "formatter": {
+      "command": "prettier --write {file}",
+      "extensions": [".ts", ".tsx"]
+    },
+    "linter": {
+      "command": "eslint {file}",
+      "extensions": [".ts", ".tsx"],
+      "args": ["--fix"]
+    },
+    "typeChecker": {
+      "command": "tsc --noEmit --strict",
+      "extensions": [".ts", ".tsx"]
+    },
+    "testRunner": {
+      "command": "vitest run {file}",
+      "extensions": [".ts", ".tsx"]
+    }
+  },
+  "packageManager": {
+    "preferred": "npm",
+    "fallback": "pnpm",
+    "lockfile": "package-lock.json"
+  },
+  "validationSteps": [
+    "eslint",
+    "tsc-strict",
+    "vitest"
+  ],
+  "conventions": {
+    "fileNaming": "kebab-case",
+    "functionNaming": "camelCase",
+    "classNaming": "PascalCase",
+    "constantNaming": "SCREAMING_SNAKE",
+    "variableNaming": "camelCase",
+    "docstringStyle": "tsdoc"
+  }
+}

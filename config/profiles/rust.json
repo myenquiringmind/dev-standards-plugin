@@ -1,0 +1,41 @@
+{
+  "$schema": "../../schemas/profile.schema.json",
+  "name": "rust",
+  "priority": "P2",
+  "detection": {
+    "markers": ["Cargo.toml"],
+    "extensions": [".rs"]
+  },
+  "tools": {
+    "formatter": {
+      "command": "rustfmt {file}",
+      "extensions": [".rs"]
+    },
+    "linter": {
+      "command": "cargo clippy --fix --allow-dirty",
+      "extensions": [".rs"]
+    },
+    "testRunner": {
+      "command": "cargo test",
+      "extensions": [".rs"]
+    }
+  },
+  "packageManager": {
+    "preferred": "cargo",
+    "fallback": "cargo",
+    "lockfile": "Cargo.lock"
+  },
+  "validationSteps": [
+    "rustfmt",
+    "clippy",
+    "cargo-test"
+  ],
+  "conventions": {
+    "fileNaming": "snake_case",
+    "functionNaming": "snake_case",
+    "classNaming": "PascalCase",
+    "constantNaming": "SCREAMING_SNAKE",
+    "variableNaming": "snake_case",
+    "docstringStyle": "rustdoc"
+  }
+}

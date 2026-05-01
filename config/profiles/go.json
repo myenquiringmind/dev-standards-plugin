@@ -1,0 +1,41 @@
+{
+  "$schema": "../../schemas/profile.schema.json",
+  "name": "go",
+  "priority": "P2",
+  "detection": {
+    "markers": ["go.mod"],
+    "extensions": [".go"]
+  },
+  "tools": {
+    "formatter": {
+      "command": "gofmt -w {file}",
+      "extensions": [".go"]
+    },
+    "linter": {
+      "command": "golangci-lint run {file}",
+      "extensions": [".go"]
+    },
+    "testRunner": {
+      "command": "go test ./...",
+      "extensions": [".go"]
+    }
+  },
+  "packageManager": {
+    "preferred": "go",
+    "fallback": "go",
+    "lockfile": "go.sum"
+  },
+  "validationSteps": [
+    "gofmt",
+    "golangci-lint",
+    "go-test"
+  ],
+  "conventions": {
+    "fileNaming": "snake_case",
+    "functionNaming": "camelCase",
+    "classNaming": "PascalCase",
+    "constantNaming": "PascalCase",
+    "variableNaming": "camelCase",
+    "docstringStyle": "godoc"
+  }
+}
