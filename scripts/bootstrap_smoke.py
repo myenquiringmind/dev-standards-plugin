@@ -1,16 +1,23 @@
-"""Phase 1 exit gate — 13-assertion self-test.
+"""Phase 1 + Phase 2 exit gate — 21-assertion self-test.
 
-Reproduces every assertion from ``docs/phases/phase-1-bootstrap.md``
-§ "Phase 1 exit gate — 13 non-negotiable assertions". Each check
-runs in an isolated ``temp_directory`` or invokes a hook module
-via ``uv run python -m hooks.<name>``; nothing mutates the real
-repo state.
+Reproduces:
 
-Assertions that require a live LLM invocation (``/validate``
-itself; live agent verdicts) are exercised structurally: the agent
-or command file must exist, be schema-valid, and reference the
-expected canonical tuples. A full live-integration smoke test is
-deferred to Phase 2's CI harness.
+- Phase 1 exit gate (assertions 1-13) per
+  ``docs/phases/phase-1-bootstrap.md``.
+- Phase 2 exit gate (assertions 14-21) per
+  ``docs/phases/phase-2-hook-completion.md``.
+
+Each check runs in an isolated ``temp_directory`` or invokes a
+hook module via ``uv run python -m hooks.<name>``; nothing mutates
+the real repo state.
+
+Assertions that require a live LLM invocation (``/validate`` itself,
+live agent verdicts, ``meta-agent-arch-doc-reviewer`` body checks)
+are exercised structurally: the agent or command file must exist,
+be schema-valid, and reference the expected canonical tuples. A
+full live-integration smoke test is deferred to
+``scripts/live_integration_smoke.py`` (Phase 2 CI harness, separate
+work item).
 
 Usage:
     uv run python -m scripts.bootstrap_smoke
@@ -22,22 +29,27 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
+import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
 from hooks._hook_shared import (
+    AGENT_VALIDATION_STEPS,
     CRITICAL_CONTEXT_PCT,
     PY_VALIDATION_STEPS,
     STAMP_TTL,
 )
 from hooks._os_safe import temp_directory
+from hooks._session_state_common import get_memory_dir
 
 _STAMP_VERSION: str = "1.0.0"
 _SUBPROCESS_TIMEOUT: int = 15
@@ -68,8 +80,6 @@ def _run_hook_module(
     cmd = ["uv", "run", "python", "-m", f"hooks.{module}"]
     if extra_args:
         cmd.extend(extra_args)
-    import os
-
     env = os.environ.copy()
     env["CLAUDE_PROJECT_DIR"] = str(root)
     if env_overrides:
@@ -149,6 +159,36 @@ def _copy_schemas(real_root: Path, fixture_root: Path) -> None:
         (fixture_root / "schemas" / name).write_text(
             src.read_text(encoding="utf-8"), encoding="utf-8"
         )
+
+
+def _seed_registry(root: Path, nodes: list[dict[str, Any]]) -> None:
+    """Write a minimal ``config/graph-registry.json`` for tier-aware hooks."""
+    config_dir = root / "config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "version": "1.0.0",
+        "generated_at": "2026-05-01T00:00:00Z",
+        "nodes": nodes,
+        "edges": [],
+    }
+    (config_dir / "graph-registry.json").write_text(json.dumps(payload), encoding="utf-8")
+
+
+def _agent_node(agent_id: str, *, tier: str, max_turns: int = 10) -> dict[str, Any]:
+    """Build a registry node entry suitable for the tier-aware hook gates."""
+    return {
+        "id": agent_id,
+        "type": "Agent",
+        "category": "meta",
+        "metadata": {
+            "agent_type": "blocking",
+            "model": "opus",
+            "tools": ["Read", "Bash"],
+            "memory": "none",
+            "maxTurns": max_turns,
+            "tier": tier,
+        },
+    }
 
 
 def _parse_frontmatter(text: str) -> dict[str, object] | None:
@@ -517,6 +557,247 @@ def _check_secret_scan_and_gitignore(real_root: Path) -> AssertionResult:
 
 
 # ---------------------------------------------------------------------------
+# Phase 2 assertions (14-21)
+# ---------------------------------------------------------------------------
+
+
+def _check_tier_enforcer_blocks_edit(real_root: Path) -> AssertionResult:
+    """Assertion 14: pre_tool_use_tier_enforcer blocks Edit from a read-tier subagent."""
+    with temp_directory(prefix="smoke-14-") as root:
+        _seed_registry(root, [_agent_node("scanner", tier="read")])
+        payload = {
+            "tool_name": "Edit",
+            "agent_type": "scanner",
+            "tool_input": {
+                "file_path": str(root / "x.py"),
+                "old_string": "",
+                "new_string": "y",
+            },
+        }
+        result = _run_hook_module("pre_tool_use_tier_enforcer", root, stdin_payload=payload)
+        if result.returncode != 2:
+            return AssertionResult(
+                14,
+                "tier-enforcer-blocks-edit",
+                False,
+                f"expected exit 2, got {result.returncode}: {result.stderr[:200]}",
+            )
+    return AssertionResult(14, "tier-enforcer-blocks-edit", True)
+
+
+def _check_bash_tier_guard_blocks_rm(real_root: Path) -> AssertionResult:
+    """Assertion 15: pre_bash_tier_guard rejects rm from a reason-tier subagent."""
+    with temp_directory(prefix="smoke-15-") as root:
+        _seed_registry(root, [_agent_node("planner", tier="reason")])
+        payload = {
+            "tool_name": "Bash",
+            "agent_type": "planner",
+            "tool_input": {"command": "rm -rf /tmp/foo"},
+        }
+        result = _run_hook_module("pre_bash_tier_guard", root, stdin_payload=payload)
+        if result.returncode != 2:
+            return AssertionResult(
+                15,
+                "bash-tier-guard-blocks-rm",
+                False,
+                f"expected exit 2, got {result.returncode}: {result.stderr[:200]}",
+            )
+    return AssertionResult(15, "bash-tier-guard-blocks-rm", True)
+
+
+def _check_stop_validation_blocks_dirty_tree(real_root: Path) -> AssertionResult:
+    """Assertion 16: stop_validation blocks Stop with uncommitted changes."""
+    with temp_directory(prefix="smoke-16-") as root:
+        _init_git_repo(root)
+        # Untracked file → git status --porcelain returns ``?? <name>``.
+        (root / "dirty.py").write_text("x = 1\n", encoding="utf-8")
+        result = _run_hook_module("stop_validation", root, stdin_payload={})
+        if result.returncode != 2:
+            return AssertionResult(
+                16,
+                "stop-validation-dirty-tree",
+                False,
+                f"expected exit 2, got {result.returncode}: {result.stderr[:200]}",
+            )
+    return AssertionResult(16, "stop-validation-dirty-tree", True)
+
+
+def _check_stop_failure_writes_incident(real_root: Path) -> AssertionResult:
+    """Assertion 17: stop_failure writes a ULID-keyed incident under the configured dir."""
+    with temp_directory(prefix="smoke-17-") as root:
+        incidents_dir = root / "incidents"
+        result = _run_hook_module(
+            "stop_failure",
+            root,
+            stdin_payload={"error": "smoke-test"},
+            env_overrides={"CLAUDE_INCIDENTS_DIR": str(incidents_dir)},
+        )
+        if result.returncode != 0:
+            return AssertionResult(
+                17,
+                "stop-failure-incident",
+                False,
+                f"expected exit 0, got {result.returncode}",
+            )
+        files = list(incidents_dir.rglob("INC-*.jsonl"))
+        if len(files) != 1:
+            return AssertionResult(
+                17,
+                "stop-failure-incident",
+                False,
+                f"expected 1 incident file, got {len(files)}",
+            )
+        record = json.loads(files[0].read_text(encoding="utf-8").splitlines()[0])
+        if record.get("category") != "stop-failure":
+            return AssertionResult(
+                17,
+                "stop-failure-incident",
+                False,
+                f"wrong category: {record.get('category')!r}",
+            )
+        ulid = record.get("ulid", "")
+        if not re.match(r"^[0-9A-HJKMNP-TV-Z]{26}$", ulid):
+            return AssertionResult(17, "stop-failure-incident", False, f"invalid ULID: {ulid!r}")
+    return AssertionResult(17, "stop-failure-incident", True)
+
+
+def _check_telemetry_concurrent_safe(real_root: Path) -> AssertionResult:
+    """Assertion 18: ``_telemetry`` keeps both records intact under concurrent writes."""
+    with temp_directory(prefix="smoke-18-") as root:
+        telemetry_dir = root / "telemetry"
+        cmd = ["uv", "run", "python", "-m", "hooks.instructions_loaded"]
+        env = os.environ.copy()
+        env["CLAUDE_PROJECT_DIR"] = str(root)
+        env["CLAUDE_TELEMETRY_DIR"] = str(telemetry_dir)
+
+        # Spawn two subprocesses simultaneously, each emitting one record.
+        procs = [
+            subprocess.Popen(
+                cmd,
+                env=env,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            for _ in range(2)
+        ]
+        payloads = [
+            json.dumps({"instructions": ["a.md"]}),
+            json.dumps({"instructions": ["b.md"]}),
+        ]
+        for proc, payload in zip(procs, payloads, strict=True):
+            proc.stdin.write(payload.encode("utf-8"))  # type: ignore[union-attr]
+            proc.stdin.close()  # type: ignore[union-attr]
+        for proc in procs:
+            proc.wait(timeout=_SUBPROCESS_TIMEOUT)
+        if any(p.returncode != 0 for p in procs):
+            codes = [p.returncode for p in procs]
+            return AssertionResult(18, "telemetry-concurrent", False, f"non-zero exits: {codes}")
+
+        files = list(telemetry_dir.glob("*.jsonl"))
+        if not files:
+            return AssertionResult(18, "telemetry-concurrent", False, "no telemetry file produced")
+        records: list[dict[str, Any]] = []
+        for path in files:
+            for line in path.read_text(encoding="utf-8").splitlines():
+                if line.strip():
+                    records.append(json.loads(line))
+        if len(records) != 2:
+            return AssertionResult(
+                18,
+                "telemetry-concurrent",
+                False,
+                f"expected 2 records, got {len(records)}",
+            )
+        files_seen = {tuple(r["data"]["files"]) for r in records}
+        if files_seen != {("a.md",), ("b.md",)}:
+            return AssertionResult(
+                18,
+                "telemetry-concurrent",
+                False,
+                f"records corrupted or interleaved: {files_seen}",
+            )
+    return AssertionResult(18, "telemetry-concurrent", True)
+
+
+def _check_meta_agent_arch_doc_reviewer(real_root: Path) -> AssertionResult:
+    """Assertion 19: meta-agent-arch-doc-reviewer present and AGENT_VALIDATION_STEPS grew."""
+    path = real_root / "agents" / "meta" / "meta-agent-arch-doc-reviewer.md"
+    if not path.is_file():
+        return AssertionResult(19, "tuple-growth-path", False, f"missing: {path}")
+    fm = _parse_frontmatter(path.read_text(encoding="utf-8"))
+    if not fm or fm.get("name") != "meta-agent-arch-doc-reviewer":
+        return AssertionResult(
+            19,
+            "tuple-growth-path",
+            False,
+            f"frontmatter name mismatch: {fm.get('name') if fm else 'no frontmatter'}",
+        )
+    # Phase 2 grew the tuple from {command-composition-reviewer} to include
+    # the new reviewer. That growth is the assertion.
+    if "agent-arch-doc-reviewer" not in AGENT_VALIDATION_STEPS:
+        return AssertionResult(
+            19,
+            "tuple-growth-path",
+            False,
+            f"AGENT_VALIDATION_STEPS missing 'agent-arch-doc-reviewer': {AGENT_VALIDATION_STEPS}",
+        )
+    return AssertionResult(19, "tuple-growth-path", True)
+
+
+def _check_checkpoint_gate_blocks_stale(real_root: Path) -> AssertionResult:
+    """Assertion 20: checkpoint_gate blocks subagent Bash when state is stale."""
+    with temp_directory(prefix="smoke-20-") as root:
+        memory_dir = get_memory_dir(root)
+        memory_dir.mkdir(parents=True, exist_ok=True)
+        stale_ts = time.time() - 3600  # 1h ago — past the 30min threshold.
+        (memory_dir / "session-checkpoint.state.json").write_text(
+            json.dumps({"last_write_ts": stale_ts, "event_count": 0, "last_branch": ""}),
+            encoding="utf-8",
+        )
+        payload = {
+            "tool_name": "Bash",
+            "agent_type": "scanner",
+            "tool_input": {"command": "git status"},
+        }
+        result = _run_hook_module("checkpoint_gate", root, stdin_payload=payload)
+        if result.returncode != 2:
+            return AssertionResult(
+                20,
+                "checkpoint-gate-stale",
+                False,
+                f"expected exit 2, got {result.returncode}: {result.stderr[:200]}",
+            )
+    return AssertionResult(20, "checkpoint-gate-stale", True)
+
+
+def _check_secret_scan_staged(real_root: Path) -> AssertionResult:
+    """Assertion 21: pre_commit_secret_scan blocks a staged file containing AKIA."""
+    with temp_directory(prefix="smoke-21-") as root:
+        _init_git_repo(root)
+        (root / "config.py").write_text("AWS_KEY = 'AKIAIOSFODNN7EXAMPLE'\n", encoding="utf-8")
+        subprocess.run(
+            ["git", "add", "config.py"],
+            cwd=str(root),
+            check=True,
+            capture_output=True,
+        )
+        payload = {
+            "tool_name": "Bash",
+            "tool_input": {"command": "git commit -m 'add config'"},
+        }
+        result = _run_hook_module("pre_commit_secret_scan", root, stdin_payload=payload)
+        if result.returncode != 2:
+            return AssertionResult(
+                21,
+                "secret-scan-staged",
+                False,
+                f"expected exit 2, got {result.returncode}: {result.stderr[:200]}",
+            )
+    return AssertionResult(21, "secret-scan-staged", True)
+
+
+# ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
 
@@ -535,6 +816,14 @@ ASSERTIONS: list[Callable[[Path], AssertionResult]] = [
     _check_doc_size_limit,
     _check_context_budget_hard_cut,
     _check_secret_scan_and_gitignore,
+    _check_tier_enforcer_blocks_edit,
+    _check_bash_tier_guard_blocks_rm,
+    _check_stop_validation_blocks_dirty_tree,
+    _check_stop_failure_writes_incident,
+    _check_telemetry_concurrent_safe,
+    _check_meta_agent_arch_doc_reviewer,
+    _check_checkpoint_gate_blocks_stale,
+    _check_secret_scan_staged,
 ]
 
 
@@ -543,17 +832,18 @@ def run_all(root: Path) -> list[AssertionResult]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Phase 1 bootstrap-smoke exit-gate test")
+    parser = argparse.ArgumentParser(description="Phase 1+2 bootstrap-smoke exit-gate test")
     parser.add_argument("--root", type=Path, default=Path.cwd())
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args(argv)
 
     root: Path = args.root.resolve()
     results = run_all(root)
+    total = len(results)
 
     for r in results:
         status = "PASS" if r.passed else "FAIL"
-        line = f"[bootstrap-smoke] {r.number:>2}/13 [{status}] {r.name}"
+        line = f"[bootstrap-smoke] {r.number:>2}/{total} [{status}] {r.name}"
         if r.detail:
             line += f" - {r.detail}"
         print(line)
@@ -562,9 +852,8 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"    · {note}")
 
     passed = sum(1 for r in results if r.passed)
-    total = len(results)
     outcome = "OK" if passed == total else "FAILED"
-    print(f"[bootstrap-smoke] {passed}/{total} passed - Phase 1 exit gate {outcome}")
+    print(f"[bootstrap-smoke] {passed}/{total} passed - Phase 1+2 exit gate {outcome}")
     return 0 if passed == total else 1
 
 
