@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-standards-plugin/schemas/reports/dead-code.schema.json",
+  "title": "Dead Code Report",
+  "description": "Produced by codebase-dead-code-detector. Three independent fact lists: per-file unused imports, internal orphan modules (zero incoming edges in the dependency graph), and language-tool-reported dead symbols (vulture, ts-prune). Consumed by codebase-architecture-reconstructor; this report is facts, not a deletion plan.",
+  "type": "object",
+  "required": [
+    "generated_at",
+    "project_dir",
+    "summary",
+    "unused_imports",
+    "orphan_modules",
+    "tool_reports"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "project_dir": {
+      "type": "string",
+      "minLength": 1
+    },
+    "primary_language": {
+      "type": ["string", "null"],
+      "description": "Profile name from <project>/.language_profile.json. Null when no stamp is present."
+    },
+    "summary": {
+      "type": "object",
+      "required": ["unused_import_count", "tool_finding_count"],
+      "additionalProperties": false,
+      "properties": {
+        "unused_import_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "orphan_module_count": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Null when dependency-graph.json was unavailable; integer count when computed."
+        },
+        "tool_finding_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total findings across all tool_reports[].findings."
+        }
+      }
+    },
+    "unused_imports": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/UnusedImport" }
+    },
+    "orphan_modules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/OrphanModule" },
+      "description": "Internal modules with zero incoming edges. Empty array when computed and none found; populated only when dependency graph was available."
+    },
+    "tool_reports": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ToolReport" },
+      "description": "One entry per language tool that was available and ran. Empty when no tools opted in."
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "$defs": {
+    "UnusedImport": {
+      "type": "object",
+      "required": ["file", "line", "name", "language"],
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Project-relative path of the file containing the import."
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based line number of the import statement."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The imported symbol or module name that is never referenced."
+        },
+        "language": {
+          "type": "string",
+          "enum": ["python", "javascript", "typescript"],
+          "description": "Language of the source file."
+        }
+      }
+    },
+    "OrphanModule": {
+      "type": "object",
+      "required": ["module_id", "path", "language"],
+      "additionalProperties": false,
+      "properties": {
+        "module_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable module identifier from the dependency graph."
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Project-relative file path."
+        },
+        "language": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "ToolReport": {
+      "type": "object",
+      "required": ["tool", "findings"],
+      "additionalProperties": false,
+      "properties": {
+        "tool": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Tool name, e.g. 'vulture', 'ts-prune'."
+        },
+        "version": {
+          "type": "string",
+          "description": "Tool version string as reported by --version."
+        },
+        "findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ToolFinding" }
+        }
+      }
+    },
+    "ToolFinding": {
+      "type": "object",
+      "required": ["file", "line", "kind", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Tool-specific finding kind, e.g. 'function', 'class', 'variable', 'import'."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Tool-reported confidence percentage when the tool emits one (vulture). Omitted otherwise."
+        }
+      }
+    }
+  }
+}
