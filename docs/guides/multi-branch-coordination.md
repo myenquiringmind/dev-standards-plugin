@@ -19,6 +19,16 @@ Signals that single-branch is enough:
 - Changes are tightly coupled and cannot be understood separately
 - No meaningful cross-references
 
+## Before cutting a branch
+
+Base-branch is a deliberate choice, not a default. Run `gh pr list` first. For each open PR that touches files you will touch, decide:
+
+- **Rebase off it** if your work depends on its content (cross-reference DAG; see below).
+- **Wait for it to land** if you can — the smallest delta to master is always cheapest.
+- **Cut from master and accept rebase-on-merge** if the work is semantically independent (the contention is purely textual — see [Implicit shared-resource contention](#implicit-shared-resource-contention)).
+
+State the chosen base in the PR description if it is not `master`.
+
 ## Worktree setup
 
 **Convention:** sibling directories to the main repo, named `<repo>.<slug>`. Example:
@@ -163,6 +173,17 @@ rules           (references both — stewardship-ratchet.md cites the registry;
 Merge order: shared-modules → stewardship → rules.
 
 If the DAG is ambiguous (two branches mutually reference each other), that is a tier-4 escalation — it probably should have been one branch.
+
+## Implicit shared-resource contention
+
+Some files are merge-fragile: every change targets the same insertion neighborhood — top-level keys in JSON registries, ordered tuples, alphabetical lookup tables. `hooks/hooks.json` and `config/graph-registry.json` are live examples. Two PRs adding different entries are *semantically independent* but *textually contend* on the same anchor lines, and conflict resolution can silently drop one side.
+
+Discipline:
+
+- **Declare contention in the PR body** under "Cross-branch dependencies": "touches `hooks.json` alongside #N." Reviewers then sequence merges deliberately.
+- **Default to FIFO merge order.** Oldest open first; each merge gives the next a fresh base, and rebasing the next surfaces conflicts at the author's desk where they have full context.
+- **Audit after merge.** Run a short shell check on shared registries (e.g., every `hooks/*.py` registered in `hooks.json`?) — catches dropped registrations within minutes rather than at the next event-fire.
+- **Genuinely unavoidable**: two PRs editing the same array (e.g., extending `PostToolUse Edit|Write|MultiEdit`). No convention fixes this — the array is the contended resource. Sequence by hand.
 
 ## TR discipline through the PR lifecycle
 
