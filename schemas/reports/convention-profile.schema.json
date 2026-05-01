@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-standards-plugin/schemas/reports/convention-profile.schema.json",
+  "title": "Convention Profile Report",
+  "description": "Produced by codebase-convention-profiler. Compares observed naming patterns and docstring style against the active language profile's `conventions` block. Lists per-file deviations plus aggregate conformance percentages by kind. Consumed by codebase-architecture-reconstructor and /setup.",
+  "type": "object",
+  "required": ["generated_at", "project_dir", "summary", "deviations"],
+  "additionalProperties": false,
+  "properties": {
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "project_dir": {
+      "type": "string",
+      "minLength": 1
+    },
+    "primary_language": {
+      "type": ["string", "null"],
+      "description": "Profile name from <project>/.language_profile.json. Null when no stamp is present or the stamp is the no-match sentinel — in which case `deviations` is empty and `notes` explains the skip."
+    },
+    "summary": {
+      "type": "object",
+      "required": ["files_scanned", "identifiers_checked", "deviations_count", "conformance_by_kind"],
+      "additionalProperties": false,
+      "properties": {
+        "files_scanned": { "type": "integer", "minimum": 0 },
+        "identifiers_checked": { "type": "integer", "minimum": 0 },
+        "deviations_count": { "type": "integer", "minimum": 0 },
+        "conformance_by_kind": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "description": "Map of convention kind (e.g. 'functionNaming') to conformance ratio in [0, 1], rounded to two decimal places. Only kinds the profile declared and the scanner could measure appear here."
+        }
+      }
+    },
+    "deviations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Deviation" }
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "$defs": {
+    "Deviation": {
+      "type": "object",
+      "required": ["file", "line", "kind", "name", "observed", "expected"],
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Project-relative path of the file containing the deviating identifier."
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based line number of the deviating identifier (or 1 for fileNaming deviations)."
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "fileNaming",
+            "functionNaming",
+            "classNaming",
+            "constantNaming",
+            "variableNaming",
+            "docstringStyle"
+          ],
+          "description": "Which conventions-block field the deviation pertains to."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The deviating identifier (or filename basename, without extension, for fileNaming deviations)."
+        },
+        "observed": {
+          "type": "string",
+          "enum": [
+            "snake_case",
+            "SCREAMING_SNAKE",
+            "kebab-case",
+            "PascalCase",
+            "camelCase",
+            "UPPERCASE",
+            "lowercase",
+            "mixed"
+          ],
+          "description": "Detected naming style. 'mixed' covers identifiers that fit none of the canonical styles."
+        },
+        "expected": {
+          "type": "string",
+          "enum": [
+            "snake_case",
+            "SCREAMING_SNAKE",
+            "kebab-case",
+            "PascalCase",
+            "camelCase",
+            "UPPERCASE",
+            "lowercase"
+          ],
+          "description": "The naming style declared by the active language profile for this kind. Mirrors profile.schema.json's NamingStyle enum (without the 'mixed' value, which is observation-only)."
+        }
+      }
+    }
+  }
+}
