@@ -32,11 +32,11 @@
 
 - **Blocks:** nothing immediately (advisory, cross-cutting cleanup). Sub-plan 1 can ride alongside Phase C or Phase D work. Sub-plan 2 is blocked on Phase 2 agent scaffolder.
 
-- **Status:** IN_PROGRESS (sub-plan 1 landing via `docs/tr-0002-uv-run-framework-outputs`; sub-plan 2 remains OPEN and blocked on Phase 2)
+- **Status:** IN_PROGRESS (sub-plan 1 CLOSED in commit `9948f25` via PR #21; sub-plan 2 OPEN, **unblocked since Phase 1**, deferred to a future phase pending agent-catalog priorities)
 
 ## Sub-plan 1 resolution
 
-Sub-plan 1 resolved in commit `<filled at merge>` on `docs/tr-0002-uv-run-framework-outputs`. All six files enumerated in Gap 1 now route Python tooling through `uv run` (or `uv pip install` for the agents/validation-standards.md advisory example):
+Sub-plan 1 resolved in commit `9948f25` on `docs/tr-0002-uv-run-framework-outputs` (merged via PR #21, merge commit `fbe7a90`). All six files enumerated in Gap 1 now route Python tooling through `uv run` (or `uv pip install` for the agents/validation-standards.md advisory example):
 
 - `commands/typecheck.md` — Python type-check, lint, fallback lint, and Ruff auto-fix all `uv run`-prefixed
 - `commands/validate.md` — lint and test chains drop bare `pytest`/`python -m pytest` fallback, use `uv run pytest` / `uv run ruff check` / `uv run pylint`
@@ -47,4 +47,4 @@ Sub-plan 1 resolved in commit `<filled at merge>` on `docs/tr-0002-uv-run-framew
 
 Verification: `rg -nE "^\s*(ruff|mypy|pytest|pylint|pip install)" commands/ docs/guides/ docs/architecture/lifecycle/validate.md agents/validation-standards.md` returns nothing outside `uv run`/`uv pip` contexts.
 
-Sub-plan 2 (agents) remains OPEN and blocked on the Phase 2 `meta-agent-scaffolder`.
+Sub-plan 2 (agents) remains **OPEN** but is **unblocked**. The original blocker — `meta-agent-scaffolder` — actually shipped in **Phase 1** (PR #31, merge commit `d1ddef3`), not Phase 2 as the original plan text claimed. Sub-plan 2 has been unblocked since Phase 1 close; building the three `operate-uv-*` / `maintain-uv-*` agents was not picked up during Phase 2 because the Phase 2 hook layer took priority. Defer to Phase 3+ pending agent-catalog priorities (sub-plan 2 sits adjacent to Phase 3's brownfield scanner work — they may share a planning pass).
