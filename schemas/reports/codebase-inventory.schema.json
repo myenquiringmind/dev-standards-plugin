@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-standards-plugin/schemas/reports/codebase-inventory.schema.json",
+  "title": "Codebase Inventory Report",
+  "description": "Produced by codebase-inventory-scanner. Canonical fact-set describing a project's source tree at scan time: file counts and LOC by extension, top-level directory structure, depth, and detected languages. Consumed by codebase-architecture-reconstructor and other reason-tier analysts.",
+  "type": "object",
+  "required": [
+    "generated_at",
+    "project_dir",
+    "file_count_total",
+    "file_counts_by_extension",
+    "loc_total",
+    "loc_by_extension",
+    "top_level_dirs",
+    "depth_max",
+    "languages_detected"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp of when the scan started."
+    },
+    "project_dir": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Absolute path of the project root scanned."
+    },
+    "primary_language": {
+      "type": ["string", "null"],
+      "description": "Profile name from <project>/.language_profile.json (e.g. 'python'). Null when no stamp is present or the stamp is the no-match sentinel."
+    },
+    "file_count_total": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Sum of file_counts_by_extension values."
+    },
+    "file_counts_by_extension": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "description": "Map of file extension (with leading dot) to the count of files seen with that extension after exclusions."
+    },
+    "loc_total": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Sum of loc_by_extension values. Excludes binary and very-large files per the scanner procedure."
+    },
+    "loc_by_extension": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "description": "Map of file extension to total lines of code seen with that extension after exclusions."
+    },
+    "top_level_dirs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "description": "Names of immediate children of the project root that survived the exclusion filter, sorted alphabetically (lower-case)."
+    },
+    "depth_max": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Maximum directory nesting depth from the project root after exclusions. 0 for a flat repo with all files at root."
+    },
+    "languages_detected": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "description": "Profile names whose detection.extensions match at least one file in the scanned tree, sorted alphabetically."
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Human-readable observations: skipped files, surprising findings, contradictions between primary_language and languages_detected."
+    }
+  }
+}
