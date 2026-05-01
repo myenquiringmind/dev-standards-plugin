@@ -16,6 +16,7 @@ Phase 2 completed the hook layer. Every CC lifecycle event in `docs/architecture
 | Process | Multi-branch coord doc updates (pre-cut PR check + implicit shared-resource discipline) | #72 |
 | Repair | Restore `WorktreeCreate` / `WorktreeRemove` registrations dropped during PR #69 merge resolution | #71 |
 | Exit gate | `bootstrap_smoke` extended from 13 → 21 assertions | #73 |
+| Close-out audit | TR-0002 status correction; Phase 1 integration verification runbook; `live_integration_smoke.py` shipped to satisfy the spec's previously-deferred CI-harness line | #75, #76, #77 |
 
 28 PRs landed across this phase (#46–#73, with #46 a Phase 1 carry-forward). Two new shared modules joined `_hook_shared`, `_session_state_common`, `_os_safe`: the framework now has six shared modules that hooks compose against.
 
@@ -66,7 +67,7 @@ None of these widened the **exit gate** — the 21 assertions remain exactly as 
 
 ### Deferred from Phase 2
 
-- **`scripts/live_integration_smoke.py`** — CI harness exercising assertions 1, 2, 10 with real subagent invocations. Spec'd in `phase-2-hook-completion.md` § exit gate; explicitly deferred because it needs an LLM-capable runtime, not a local `uv run`. Owns the assertions that `bootstrap_smoke` covers structurally.
+None. The close-out audit caught a misread on the original deferral of `scripts/live_integration_smoke.py` — the spec's "deferred to end-of-phase once the remaining hooks land" reads as "land it last in Phase 2," not "defer past Phase 2." It shipped via PR #77 alongside the rest of the close-out work. The harness skips silently when `ANTHROPIC_API_KEY` is unset or the `anthropic` SDK is not installed, so unkeyed environments are unaffected.
 
 ### To Phase 3
 
@@ -77,6 +78,8 @@ None of these widened the **exit gate** — the 21 assertions remain exactly as 
 
 - `WorktreeCreate` / `WorktreeRemove` `hooks.json` registrations restored (PR #71) after the PR #69 merge dropped them.
 - `_hook_shared.py` accreted four new threshold constants (`CHECKPOINT_STALENESS_THRESHOLD_SECONDS`, `TMP_FILE_AGE_THRESHOLD_SECONDS`, `VERSION_CHECK_INTERVAL_SECONDS`, plus the existing checkpoint cadence) — single source of truth maintained.
+- TR-0002 status corrected (PR #75): the registry's "blocked on Phase 2" claim was stale (the blocker `meta-agent-scaffolder` shipped in Phase 1). Sub-plan 2 is now correctly recorded as OPEN-and-unblocked, deferred pending agent-catalog priorities.
+- Phase 1 integration-gate verification runbook published (PR #76): `docs/guides/phase-1-integration-verification.md` makes the I1-I3 manual verification mechanical (~5 min when run on a CC restart).
 
 ### Lessons accreted to auto-memory (durable across sessions)
 
