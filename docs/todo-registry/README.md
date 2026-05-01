@@ -56,7 +56,7 @@ A future hook (Phase D or later) will validate: no PR merges with unresolved blo
 
 ### Open
 
-- [TR-0002](TR-0002-standardize-uv-across-framework-outputs.md) — **IN_PROGRESS** — sub-plan 1 (docs cleanup) landing; sub-plan 2 (uv-env management agents: `operate-uv-env-initializer`, `operate-uv-dep-manager`, `maintain-uv-env-doctor`) remains open and blocked on the Phase 2 meta-agent-scaffolder
+- [TR-0002](TR-0002-standardize-uv-across-framework-outputs.md) — **IN_PROGRESS** — sub-plan 1 (docs cleanup) CLOSED in commit `9948f25` (PR #21); sub-plan 2 (uv-env management agents: `operate-uv-env-initializer`, `operate-uv-dep-manager`, `maintain-uv-env-doctor`) OPEN and **unblocked** (the original blocker `meta-agent-scaffolder` shipped in Phase 1, not Phase 2 — claim was stale); deferred pending agent-catalog priorities, likely to be picked up alongside Phase 3+ scanner work
 
 ### Recently closed
 
