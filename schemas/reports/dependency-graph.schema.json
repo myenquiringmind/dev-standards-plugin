@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-standards-plugin/schemas/reports/dependency-graph.schema.json",
+  "title": "Dependency Graph Report",
+  "description": "Produced by codebase-dependency-grapher. Directed graph of module-level imports — internal-module-to-internal-module edges plus internal-module-to-external-dependency edges. Consumed by codebase-architecture-reconstructor to identify layering violations, cycles, and orphan modules.",
+  "type": "object",
+  "required": ["generated_at", "project_dir", "summary", "nodes", "edges"],
+  "additionalProperties": false,
+  "properties": {
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp of when the scan started."
+    },
+    "project_dir": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Absolute path of the project root scanned."
+    },
+    "primary_language": {
+      "type": ["string", "null"],
+      "description": "Profile name from <project>/.language_profile.json. Null when no stamp is present or the stamp is the no-match sentinel."
+    },
+    "summary": {
+      "type": "object",
+      "required": ["node_count", "edge_count", "internal_node_count", "external_node_count"],
+      "additionalProperties": false,
+      "properties": {
+        "node_count": { "type": "integer", "minimum": 0 },
+        "edge_count": { "type": "integer", "minimum": 0 },
+        "internal_node_count": { "type": "integer", "minimum": 0 },
+        "external_node_count": { "type": "integer", "minimum": 0 },
+        "cycle_count": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Number of strongly-connected components with size > 1. Null when the scanner did not compute SCCs."
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Node" },
+      "description": "One entry per unique module identifier. Internal nodes carry a path; external nodes do not."
+    },
+    "edges": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Edge" },
+      "description": "Directed edges from importer to imported. Deduplicated by (source, target, kind) tuple."
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Human-readable observations: unresolved imports, ambiguous module paths, language-specific limitations."
+    }
+  },
+  "$defs": {
+    "Node": {
+      "type": "object",
+      "required": ["id", "kind", "language"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable identifier — language-canonical module path, e.g. 'src.app.routes' (Python), 'src/app/routes' (JS/TS)."
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["internal", "external"]
+        },
+        "language": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Language profile name, e.g. 'python', 'typescript', 'go', 'rust'."
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Project-relative file path. Required for internal nodes; omitted for external nodes."
+        }
+      }
+    },
+    "Edge": {
+      "type": "object",
+      "required": ["source", "target", "kind"],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Importing module's id."
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Imported module's id."
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["import", "dynamic", "reexport"],
+          "description": "import = static; dynamic = runtime resolution (import(), __import__(), require() in function body); reexport = pass-through (export from / pub use)."
+        }
+      }
+    }
+  }
+}
