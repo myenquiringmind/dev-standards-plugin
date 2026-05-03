@@ -252,6 +252,50 @@ class TestPassesAllowlistedCommands:
         _patch(monkeypatch, tmp_dir, payload=_bash_payload("scanner", "/usr/bin/git status"))
         assert guard.main() == 0
 
+    @pytest.mark.parametrize(
+        "command",
+        [
+            # No trailing ``;`` — the segment splitter is not quote-aware
+            # (documented limitation in the hook body), so agents using
+            # ``-c "..."`` must omit the SQL terminator. ``psql`` accepts
+            # this for single statements.
+            "psql $DATABASE_URL -c 'SELECT 1'",
+            "psql -h localhost -U app mydb -c '\\d users'",
+            "psql --version",
+            "mysql --execute 'SHOW CREATE TABLE users'",
+            "sqlite3 db.sqlite '.schema'",
+            "mongosh --eval 'db.getCollectionInfos()'",
+        ],
+    )
+    def test_db_cli_passes(
+        self, tmp_dir: Path, monkeypatch: pytest.MonkeyPatch, command: str
+    ) -> None:
+        # Database CLIs are read-tier-allowlisted because R-tier scanners
+        # (db-schema-scanner, future data profilers) need them for
+        # introspection. Per-statement read-only discipline is the agent's
+        # responsibility — the gate cannot inspect SQL inside ``-c "..."``.
+        _write_registry(tmp_dir, [_agent_node("scanner", "read")])
+        _patch(monkeypatch, tmp_dir, payload=_bash_payload("scanner", command))
+        assert guard.main() == 0
+
+    def test_db_cli_with_semicolon_in_quotes_is_blocked(
+        self,
+        tmp_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # Document the splitter quirk: ``;`` inside a quoted string still
+        # triggers segment-split because the splitter is not quote-aware.
+        # Agents authoring R-tier DB introspection must avoid the trailing
+        # SQL terminator inside ``-c "..."``. See db-schema-scanner.md
+        # § "Phase 3 note" for the documented contract.
+        _write_registry(tmp_dir, [_agent_node("scanner", "read")])
+        _patch(
+            monkeypatch,
+            tmp_dir,
+            payload=_bash_payload("scanner", "psql $DATABASE_URL -c 'SELECT 1;'"),
+        )
+        assert guard.main() == 2
+
 
 # ---------------------------------------------------------------------------
 # Fail-open paths

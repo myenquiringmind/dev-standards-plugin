@@ -75,6 +75,15 @@ _BASH_READ_ALLOWLIST: frozenset[str] = frozenset(
         "false",
         # Git — sub-verb checked separately
         "git",
+        # Database CLIs — read-tier scanners (db-schema-scanner, future
+        # data-profilers) need these for introspection. Per-statement
+        # read-only discipline is the agent's responsibility (the gate
+        # cannot inspect the SQL inside ``psql -c "..."``); the agent
+        # body documents the contract.
+        "psql",
+        "mysql",
+        "sqlite3",
+        "mongosh",
     }
 )
 
