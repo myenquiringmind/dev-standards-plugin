@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-standards-plugin/schemas/reports/architecture-reconstruction.schema.json",
+  "title": "Architecture Reconstruction Report",
+  "description": "Produced by codebase-architecture-reconstructor. Synthesised diagnosis from the four codebase scanner reports — layers, layering violations, cycles, dead weight, convention drift — packaged as findings + prioritized recommendations. A plan, not a verdict; Design-phase agents (Phase 7+) consume it to inform decisions.",
+  "type": "object",
+  "required": ["generated_at", "project_dir", "inputs", "summary", "findings", "recommendations"],
+  "additionalProperties": false,
+  "properties": {
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "project_dir": {
+      "type": "string",
+      "minLength": 1
+    },
+    "inputs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/InputReport" },
+      "description": "One entry per scanner report the reconstructor attempted to consume. Available reports include their `generated_at`; unavailable ones include a `note`."
+    },
+    "summary": {
+      "type": "object",
+      "required": ["findings_count", "findings_by_severity", "recommendations_count", "inputs_consumed", "layering_status"],
+      "additionalProperties": false,
+      "properties": {
+        "findings_count": { "type": "integer", "minimum": 0 },
+        "findings_by_severity": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "high": { "type": "integer", "minimum": 0 },
+            "medium": { "type": "integer", "minimum": 0 },
+            "low": { "type": "integer", "minimum": 0 }
+          },
+          "required": ["high", "medium", "low"]
+        },
+        "recommendations_count": { "type": "integer", "minimum": 0 },
+        "inputs_consumed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of inputs[] entries with available=true. <= len(inputs)."
+        },
+        "layering_status": {
+          "type": "string",
+          "enum": ["detected", "flat", "unclear"],
+          "description": "detected = directory layout suggests recognisable layers; flat = all modules at one layer; unclear = no layering pattern matched."
+        }
+      }
+    },
+    "layers": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Layer" },
+      "description": "Empty when summary.layering_status is `flat` or `unclear`."
+    },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Finding" }
+    },
+    "recommendations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Recommendation" }
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "$defs": {
+    "InputReport": {
+      "type": "object",
+      "required": ["scanner", "path", "available"],
+      "additionalProperties": false,
+      "properties": {
+        "scanner": {
+          "type": "string",
+          "enum": [
+            "codebase-inventory-scanner",
+            "codebase-dependency-grapher",
+            "codebase-dead-code-detector",
+            "codebase-convention-profiler"
+          ]
+        },
+        "path": { "type": "string", "minLength": 1 },
+        "available": { "type": "boolean" },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The scanner report's own generated_at. Required when available=true; omitted when available=false."
+        },
+        "note": {
+          "type": "string",
+          "description": "Per-input note (e.g. 'report missing'). Omitted when available=true and the report parsed cleanly."
+        }
+      }
+    },
+    "Layer": {
+      "type": "object",
+      "required": ["name", "modules"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Detected layer name (lower-case), e.g. 'api', 'domain', 'infra'."
+        },
+        "modules": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true,
+          "description": "Module IDs (matching dependency-graph.json node ids) classified into this layer."
+        }
+      }
+    },
+    "Finding": {
+      "type": "object",
+      "required": ["kind", "severity", "description", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Open-vocabulary category. Common values used by Phase 3: cycle, layering_violation, orphan_module, dead_symbol, convention_drift, scan_report_invalid, scanner_disagreement."
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["high", "medium", "low"]
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "description": "Pointers to specific scanner outputs that support this finding — module IDs, file paths, edge tuples. A finding without evidence is opinion, not analysis."
+        }
+      }
+    },
+    "Recommendation": {
+      "type": "object",
+      "required": ["priority", "description", "rationale", "related_findings"],
+      "additionalProperties": false,
+      "properties": {
+        "priority": {
+          "type": "string",
+          "enum": ["urgent", "medium", "low"]
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 1
+        },
+        "related_findings": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 },
+          "uniqueItems": true,
+          "description": "Indexes into the top-level findings[] array supporting this recommendation."
+        }
+      }
+    }
+  }
+}
