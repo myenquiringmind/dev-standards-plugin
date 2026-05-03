@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-standards-plugin/schemas/reports/db-schema.schema.json",
+  "title": "Database Schema Report",
+  "description": "Produced by db-schema-scanner. Factual snapshot of a live database's schema — tables/collections, columns/fields, indices, constraints, foreign-key relationships, planner-estimated row counts. Consumed by db-migration-planner and design / migration agents downstream. Phase 3 ships first-class PostgreSQL support; other engines emit an empty report with a `notes` entry.",
+  "type": "object",
+  "required": ["generated_at", "project_dir", "summary", "tables", "relationships"],
+  "additionalProperties": false,
+  "properties": {
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "project_dir": {
+      "type": "string",
+      "minLength": 1
+    },
+    "engine": {
+      "type": ["string", "null"],
+      "enum": ["postgresql", "mysql", "sqlite", "mongodb", null],
+      "description": "Database engine introspected. Null when DATABASE_URL was unset or the scheme was unsupported."
+    },
+    "engine_version": {
+      "type": ["string", "null"]
+    },
+    "database_name": {
+      "type": ["string", "null"],
+      "description": "The dbname segment of DATABASE_URL. Never echoes the full connection string."
+    },
+    "schema_name": {
+      "type": ["string", "null"],
+      "description": "Per-engine schema namespace, e.g. 'public' for PostgreSQL. Null when not applicable."
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "table_count",
+        "column_count_total",
+        "index_count_total",
+        "constraint_count_total",
+        "relationship_count"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "table_count": { "type": "integer", "minimum": 0 },
+        "column_count_total": { "type": "integer", "minimum": 0 },
+        "index_count_total": { "type": "integer", "minimum": 0 },
+        "constraint_count_total": { "type": "integer", "minimum": 0 },
+        "relationship_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "tables": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Table" }
+    },
+    "relationships": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Relationship" }
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "$defs": {
+    "Table": {
+      "type": "object",
+      "required": ["name", "columns", "indices", "constraints"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string" },
+        "row_count_estimate": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Planner-estimated row count (PostgreSQL pg_class.reltuples). Never an exact COUNT(*); null when the engine does not surface an estimate."
+        },
+        "columns": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Column" }
+        },
+        "indices": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Index" }
+        },
+        "constraints": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Constraint" }
+        }
+      }
+    },
+    "Column": {
+      "type": "object",
+      "required": ["name", "data_type", "is_nullable", "ordinal_position"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "data_type": { "type": "string", "minLength": 1 },
+        "is_nullable": { "type": "boolean" },
+        "default": { "type": ["string", "null"] },
+        "ordinal_position": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "Index": {
+      "type": "object",
+      "required": ["name", "definition", "is_primary", "is_unique"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "definition": { "type": "string", "minLength": 1 },
+        "is_primary": { "type": "boolean" },
+        "is_unique": { "type": "boolean" }
+      }
+    },
+    "Constraint": {
+      "type": "object",
+      "required": ["name", "kind", "columns"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "kind": {
+          "type": "string",
+          "enum": ["primary key", "foreign key", "unique", "check"]
+        },
+        "columns": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "Relationship": {
+      "type": "object",
+      "required": ["source_table", "source_columns", "target_table", "target_columns"],
+      "additionalProperties": false,
+      "properties": {
+        "source_table": { "type": "string", "minLength": 1 },
+        "source_columns": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "target_table": { "type": "string", "minLength": 1 },
+        "target_columns": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "on_delete": { "type": "string" },
+        "on_update": { "type": "string" }
+      }
+    }
+  }
+}
