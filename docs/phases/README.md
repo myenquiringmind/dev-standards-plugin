@@ -11,7 +11,7 @@ The 11-phase implementation roadmap for `dev-standards-plugin` v2. Each phase is
 | 1 | [Bootstrap Spike](./phase-1-exit-report.md) | (landed) | 22 PRs; 10 core agents, 3 v2 commands, 17 hooks, `build_graph_registry.py`, `bootstrap_smoke.py` 13/13 passing; framework validates its own commits. Live integration pending CC reload |
 | 2 | [Hook Completion](./phase-2-hook-completion.md) | 2 wks | Remaining ~19 hooks + 3 shared modules; smoke test 13 → ~21 assertions; tier-enforcement + stop lifecycle + subagent/workspace events wired |
 | 3 | [Language Profiles + State Inventory Scanners](./phase-3-language-profiles-and-scanners.md) | 2 wks | `typescript.json`, `fullstack.json`, placeholder profiles; brownfield scanner pipeline (codebase/database/api scanners + reason-tier analysts) |
-| 4 | Telemetry + Memory Infrastructure | 2 wks | 4-tier memory live, incident log, telemetry emit/consume, `closed-loop-quality-scorer`, graph history |
+| 4 | [Telemetry + Memory Infrastructure](./phase-4-telemetry-and-memory.md) | 2 wks | 4-tier memory live, incident log, telemetry emit/consume, `closed-loop-quality-scorer`, graph history |
 | 5 | Core Agent Refactor | 2 wks | 13 existing agents refactored into the new taxonomy with R/R/W tier; validation-objective-verifier and validation-completion-verifier operational |
 | 6 | TDD Workflow + Stack Agents | 3 wks | `/scaffold`, `/tdd`, `/fix`, `/debug`, `/typecheck` commands; Python stack (9) + Frontend stack (7) + Interface (3) + Database (3) agents; 3-stamp model fully operational |
 | 7 | Design + Discover + Research | 2 wks | Design (5), Discover (3), Research (2) agents; `/design`, `/plan`, `/discover`, `/research` commands |
