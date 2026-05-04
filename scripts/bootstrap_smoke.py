@@ -1,4 +1,4 @@
-"""Phase 1 + Phase 2 exit gate — 21-assertion self-test.
+"""Phase 1 + Phase 2 + Phase 3 exit gate — 28-assertion self-test.
 
 Reproduces:
 
@@ -6,6 +6,8 @@ Reproduces:
   ``docs/phases/phase-1-bootstrap.md``.
 - Phase 2 exit gate (assertions 14-21) per
   ``docs/phases/phase-2-hook-completion.md``.
+- Phase 3 exit gate (assertions 22-28) per
+  ``docs/phases/phase-3-language-profiles-and-scanners.md``.
 
 Each check runs in an isolated ``temp_directory`` or invokes a
 hook module via ``uv run python -m hooks.<name>``; nothing mutates
@@ -671,13 +673,16 @@ def _check_telemetry_concurrent_safe(real_root: Path) -> AssertionResult:
         env["CLAUDE_TELEMETRY_DIR"] = str(telemetry_dir)
 
         # Spawn two subprocesses simultaneously, each emitting one record.
+        # stdout/stderr go to DEVNULL — the assertion only inspects returncode
+        # and the produced telemetry files, so capturing the pipes leaks file
+        # descriptors that pytest's unraisable-exception collector flags.
         procs = [
             subprocess.Popen(
                 cmd,
                 env=env,
                 stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
             )
             for _ in range(2)
         ]
@@ -798,6 +803,367 @@ def _check_secret_scan_staged(real_root: Path) -> AssertionResult:
 
 
 # ---------------------------------------------------------------------------
+# Phase 3 assertions (22-28)
+# ---------------------------------------------------------------------------
+
+
+def _validate_schema_with_examples(
+    real_root: Path,
+    *,
+    number: int,
+    name: str,
+    schema_examples: list[tuple[str, dict[str, Any]]],
+) -> AssertionResult:
+    """Helper: each (schema_filename, positive_example) pair must self-validate
+    as a draft-2020-12 schema and accept its positive example."""
+    for schema_filename, positive in schema_examples:
+        schema_path = real_root / "schemas" / "reports" / schema_filename
+        if not schema_path.is_file():
+            return AssertionResult(number, name, False, f"missing: {schema_path}")
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        try:
+            Draft202012Validator.check_schema(schema)
+        except Exception as exc:
+            return AssertionResult(
+                number, name, False, f"{schema_filename}: meta-validation failed: {exc}"
+            )
+        errors = list(Draft202012Validator(schema).iter_errors(positive))
+        if errors:
+            return AssertionResult(
+                number,
+                name,
+                False,
+                f"{schema_filename}: positive example rejected: {errors[0].message[:120]}",
+            )
+    return AssertionResult(number, name, True, f"{len(schema_examples)} schemas")
+
+
+def _check_phase_3_language_profiles(real_root: Path) -> AssertionResult:
+    """Assertion 22: every config/profiles/*.json validates against
+    profile.schema.json; typescript markers don't collide with python."""
+    schema_path = real_root / "schemas" / "profile.schema.json"
+    if not schema_path.is_file():
+        return AssertionResult(
+            22, "phase-3-language-profiles", False, "profile.schema.json missing"
+        )
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    profiles_dir = real_root / "config" / "profiles"
+    profile_files = sorted(profiles_dir.glob("*.json"))
+    if not profile_files:
+        return AssertionResult(22, "phase-3-language-profiles", False, "no profile files found")
+    markers_by_profile: dict[str, set[str]] = {}
+    for path in profile_files:
+        profile = json.loads(path.read_text(encoding="utf-8"))
+        errors = list(Draft202012Validator(schema).iter_errors(profile))
+        if errors:
+            return AssertionResult(
+                22,
+                "phase-3-language-profiles",
+                False,
+                f"{path.name} invalid: {errors[0].message[:120]}",
+            )
+        markers_by_profile[profile["name"]] = set(profile["detection"]["markers"])
+    if "python" in markers_by_profile and "typescript" in markers_by_profile:
+        overlap = markers_by_profile["python"] & markers_by_profile["typescript"]
+        if overlap:
+            return AssertionResult(
+                22,
+                "phase-3-language-profiles",
+                False,
+                f"python/typescript marker collision: {sorted(overlap)}",
+            )
+    return AssertionResult(22, "phase-3-language-profiles", True, f"{len(profile_files)} profiles")
+
+
+def _check_agent_files_present(
+    real_root: Path,
+    *,
+    number: int,
+    name: str,
+    expected: list[tuple[str, str, str]],
+) -> AssertionResult:
+    """Helper: each (relative_path, expected_name, expected_tier) tuple must
+    point at a real file with valid frontmatter matching the expected fields."""
+    schema_path = real_root / "schemas" / "agent-frontmatter.schema.json"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    for relpath, expected_name, expected_tier in expected:
+        path = real_root / relpath
+        if not path.is_file():
+            return AssertionResult(number, name, False, f"missing: {relpath}")
+        fm = _parse_frontmatter(path.read_text(encoding="utf-8"))
+        if not fm:
+            return AssertionResult(number, name, False, f"{relpath}: no frontmatter")
+        if fm.get("name") != expected_name:
+            return AssertionResult(
+                number, name, False, f"{relpath}: name={fm.get('name')!r} != {expected_name!r}"
+            )
+        if fm.get("tier") != expected_tier:
+            return AssertionResult(
+                number, name, False, f"{relpath}: tier={fm.get('tier')!r} != {expected_tier!r}"
+            )
+        errors = list(Draft202012Validator(schema).iter_errors(fm))
+        if errors:
+            return AssertionResult(
+                number, name, False, f"{relpath}: frontmatter invalid: {errors[0].message[:120]}"
+            )
+    return AssertionResult(number, name, True, f"{len(expected)} agents")
+
+
+def _check_phase_3_codebase_scanner_agents(real_root: Path) -> AssertionResult:
+    """Assertion 23: the four codebase R-tier scanner agents are present
+    with valid frontmatter and tier=read."""
+    return _check_agent_files_present(
+        real_root,
+        number=23,
+        name="phase-3-codebase-scanners",
+        expected=[
+            (
+                "agents/codebase/codebase-inventory-scanner.md",
+                "codebase-inventory-scanner",
+                "read",
+            ),
+            (
+                "agents/codebase/codebase-dependency-grapher.md",
+                "codebase-dependency-grapher",
+                "read",
+            ),
+            (
+                "agents/codebase/codebase-dead-code-detector.md",
+                "codebase-dead-code-detector",
+                "read",
+            ),
+            (
+                "agents/codebase/codebase-convention-profiler.md",
+                "codebase-convention-profiler",
+                "read",
+            ),
+        ],
+    )
+
+
+def _check_phase_3_db_api_scanner_agents(real_root: Path) -> AssertionResult:
+    """Assertion 24: db-schema-scanner and api-contract-extractor are
+    present with valid frontmatter and tier=read."""
+    return _check_agent_files_present(
+        real_root,
+        number=24,
+        name="phase-3-db-api-scanners",
+        expected=[
+            ("agents/database/db-schema-scanner.md", "db-schema-scanner", "read"),
+            ("agents/api/api-contract-extractor.md", "api-contract-extractor", "read"),
+        ],
+    )
+
+
+def _check_phase_3_reason_analyst_agents(real_root: Path) -> AssertionResult:
+    """Assertion 25: the three reason-tier analysts are present with
+    valid frontmatter, tier=reason, and model=opus."""
+    expected = [
+        (
+            "agents/codebase/codebase-architecture-reconstructor.md",
+            "codebase-architecture-reconstructor",
+            "reason",
+        ),
+        ("agents/database/db-migration-planner.md", "db-migration-planner", "reason"),
+        ("agents/api/api-breaking-change-analyzer.md", "api-breaking-change-analyzer", "reason"),
+    ]
+    base = _check_agent_files_present(
+        real_root, number=25, name="phase-3-reason-analysts", expected=expected
+    )
+    if not base.passed:
+        return base
+    # Phase 3 reason analysts are all model: opus per the established pattern.
+    for relpath, _, _ in expected:
+        fm = _parse_frontmatter((real_root / relpath).read_text(encoding="utf-8"))
+        assert fm is not None  # base check guarantees this
+        if fm.get("model") != "opus":
+            return AssertionResult(
+                25,
+                "phase-3-reason-analysts",
+                False,
+                f"{relpath}: model={fm.get('model')!r} != 'opus'",
+            )
+    return AssertionResult(25, "phase-3-reason-analysts", True, f"{len(expected)} analysts")
+
+
+def _check_phase_3_codebase_report_schemas(real_root: Path) -> AssertionResult:
+    """Assertion 26: the four codebase scanner report schemas
+    self-validate and accept a minimal positive example."""
+    examples: list[tuple[str, dict[str, Any]]] = [
+        (
+            "codebase-inventory.schema.json",
+            {
+                "generated_at": "2026-05-04T08:00:00Z",
+                "project_dir": "/p",
+                "file_count_total": 1,
+                "file_counts_by_extension": {".py": 1},
+                "loc_total": 3,
+                "loc_by_extension": {".py": 3},
+                "top_level_dirs": ["src"],
+                "depth_max": 1,
+                "languages_detected": ["python"],
+            },
+        ),
+        (
+            "dependency-graph.schema.json",
+            {
+                "generated_at": "2026-05-04T08:00:00Z",
+                "project_dir": "/p",
+                "summary": {
+                    "node_count": 2,
+                    "edge_count": 1,
+                    "internal_node_count": 2,
+                    "external_node_count": 0,
+                },
+                "nodes": [
+                    {"id": "a", "kind": "internal", "language": "python", "path": "src/a.py"},
+                    {"id": "b", "kind": "internal", "language": "python", "path": "src/b.py"},
+                ],
+                "edges": [{"source": "a", "target": "b", "kind": "import"}],
+            },
+        ),
+        (
+            "dead-code.schema.json",
+            {
+                "generated_at": "2026-05-04T08:00:00Z",
+                "project_dir": "/p",
+                "summary": {"unused_import_count": 0, "tool_finding_count": 0},
+                "unused_imports": [],
+                "orphan_modules": [],
+                "tool_reports": [],
+            },
+        ),
+        (
+            "convention-profile.schema.json",
+            {
+                "generated_at": "2026-05-04T08:00:00Z",
+                "project_dir": "/p",
+                "summary": {
+                    "files_scanned": 0,
+                    "identifiers_checked": 0,
+                    "deviations_count": 0,
+                    "conformance_by_kind": {},
+                },
+                "deviations": [],
+            },
+        ),
+    ]
+    return _validate_schema_with_examples(
+        real_root, number=26, name="phase-3-codebase-schemas", schema_examples=examples
+    )
+
+
+def _check_phase_3_db_api_report_schemas(real_root: Path) -> AssertionResult:
+    """Assertion 27: db-schema and api-contract report schemas
+    self-validate and accept a minimal positive example."""
+    examples: list[tuple[str, dict[str, Any]]] = [
+        (
+            "db-schema.schema.json",
+            {
+                "generated_at": "2026-05-04T08:00:00Z",
+                "project_dir": "/p",
+                "engine": None,
+                "database_name": None,
+                "schema_name": None,
+                "summary": {
+                    "table_count": 0,
+                    "column_count_total": 0,
+                    "index_count_total": 0,
+                    "constraint_count_total": 0,
+                    "relationship_count": 0,
+                },
+                "tables": [],
+                "relationships": [],
+                "notes": ["DATABASE_URL not set; no schema introspected."],
+            },
+        ),
+        (
+            "api-contract.schema.json",
+            {
+                "generated_at": "2026-05-04T08:00:00Z",
+                "project_dir": "/p",
+                "summary": {
+                    "contract_count": 0,
+                    "openapi_count": 0,
+                    "trpc_count": 0,
+                    "graphql_count": 0,
+                    "total_paths": 0,
+                },
+                "contracts": [],
+            },
+        ),
+    ]
+    return _validate_schema_with_examples(
+        real_root, number=27, name="phase-3-db-api-schemas", schema_examples=examples
+    )
+
+
+def _check_phase_3_analyst_report_schemas(real_root: Path) -> AssertionResult:
+    """Assertion 28: the three reason-analyst report schemas
+    self-validate and accept a minimal positive example."""
+    examples: list[tuple[str, dict[str, Any]]] = [
+        (
+            "architecture-reconstruction.schema.json",
+            {
+                "generated_at": "2026-05-04T08:00:00Z",
+                "project_dir": "/p",
+                "inputs": [],
+                "summary": {
+                    "findings_count": 0,
+                    "findings_by_severity": {"high": 0, "medium": 0, "low": 0},
+                    "recommendations_count": 0,
+                    "inputs_consumed": 0,
+                    "layering_status": "unclear",
+                },
+                "findings": [],
+                "recommendations": [],
+            },
+        ),
+        (
+            "migration-plan.schema.json",
+            {
+                "generated_at": "2026-05-04T08:00:00Z",
+                "project_dir": "/p",
+                "inputs": [],
+                "summary": {
+                    "changes_count": 0,
+                    "steps_count": 0,
+                    "steps_by_risk": {"high": 0, "medium": 0, "low": 0},
+                    "inputs_consumed": 0,
+                    "target_provided": False,
+                    "planning_status": "no_current",
+                },
+                "changes": [],
+                "steps": [],
+            },
+        ),
+        (
+            "api-breaking-changes.schema.json",
+            {
+                "generated_at": "2026-05-04T08:00:00Z",
+                "project_dir": "/p",
+                "inputs": [],
+                "summary": {
+                    "changes_count": 0,
+                    "changes_by_breaking": {
+                        "breaking": 0,
+                        "potentially-breaking": 0,
+                        "non-breaking": 0,
+                    },
+                    "changes_by_severity": {"high": 0, "medium": 0, "low": 0},
+                    "inputs_consumed": 0,
+                    "analysis_status": "skipped",
+                },
+                "changes": [],
+            },
+        ),
+    ]
+    return _validate_schema_with_examples(
+        real_root, number=28, name="phase-3-analyst-schemas", schema_examples=examples
+    )
+
+
+# ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
 
@@ -824,6 +1190,13 @@ ASSERTIONS: list[Callable[[Path], AssertionResult]] = [
     _check_meta_agent_arch_doc_reviewer,
     _check_checkpoint_gate_blocks_stale,
     _check_secret_scan_staged,
+    _check_phase_3_language_profiles,
+    _check_phase_3_codebase_scanner_agents,
+    _check_phase_3_db_api_scanner_agents,
+    _check_phase_3_reason_analyst_agents,
+    _check_phase_3_codebase_report_schemas,
+    _check_phase_3_db_api_report_schemas,
+    _check_phase_3_analyst_report_schemas,
 ]
 
 
@@ -853,7 +1226,7 @@ def main(argv: list[str] | None = None) -> int:
 
     passed = sum(1 for r in results if r.passed)
     outcome = "OK" if passed == total else "FAILED"
-    print(f"[bootstrap-smoke] {passed}/{total} passed - Phase 1+2 exit gate {outcome}")
+    print(f"[bootstrap-smoke] {passed}/{total} passed - Phase 1+2+3 exit gate {outcome}")
     return 0 if passed == total else 1
 
 
