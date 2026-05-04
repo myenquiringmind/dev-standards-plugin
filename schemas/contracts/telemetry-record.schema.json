@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-standards-plugin/schemas/contracts/telemetry-record.schema.json",
+  "title": "Telemetry Record",
+  "description": "Single record from a telemetry JSONL file (one file per UTC date under framework-memory/telemetry/<YYYY-MM-DD>.jsonl). Phase 4 contract for the records that hooks._telemetry.emit() and hooks._telemetry.emit_many() produce. Distinct from incident records (incidents are one-file-per-failure with ULID correlation; telemetry is high-volume rotating observability without per-record IDs). Phase 4's closed-loop-quality-scorer is the canonical consumer; Phase 10's closed-loop-incident-retrospective-analyst correlates telemetry against incidents.",
+  "type": "object",
+  "required": ["timestamp", "category", "data"],
+  "additionalProperties": false,
+  "properties": {
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+      "description": "ISO-8601 UTC timestamp at second precision. emit_many() shares one timestamp across the batch; emit() in a loop produces per-record timestamps."
+    },
+    "category": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Short kebab-case identifier — the primary index readers filter on. Common Phase 2/3/4 values: `hook-failure`, `stamp-write`, `tier-violation`, `subagent-start`, `instructions-loaded`, `task-created`, `task-completed`. Open-vocabulary; new emitters add new categories as they ship."
+    },
+    "data": {
+      "type": "object",
+      "description": "Event-specific fields. Open-vocabulary — every category defines its own data shape (e.g. `hook-failure` carries `tool` and `exit`; `stamp-write` carries `gate` and `steps`). The schema does not constrain `data` because the vocabulary grows with every new emitter; per-category sub-schemas are a Phase 10 retrospective-analyst concern, not a Phase 4 contract concern."
+    }
+  }
+}
