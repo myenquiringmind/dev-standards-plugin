@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-standards-plugin/schemas/contracts/incident.schema.json",
+  "title": "Incident Record",
+  "description": "Single record from an incident JSONL file (one file per incident under framework-memory/incidents/<YYYY-MM>/INC-<ulid>.jsonl). Phase 4 contract for the records that hooks._incident.write_incident() and hooks._incident.append_to_incident() produce. The first line of each file is an `initial record` (with `category`); subsequent lines are `follow-up records` (without `category` — the category was set when the incident was opened). Phase 10's closed-loop-incident-retrospective-analyst is the canonical consumer.",
+  "type": "object",
+  "required": ["ulid", "timestamp", "severity", "detail", "extra"],
+  "additionalProperties": false,
+  "properties": {
+    "ulid": {
+      "type": "string",
+      "pattern": "^[0-9A-HJKMNP-TV-Z]{26}$",
+      "description": "26-character Crockford-base32 ULID. Stable across all records in the same incident file. Crockford excludes I, L, O, U for OCR-safety."
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+      "description": "Per-record ISO-8601 UTC timestamp at second precision. The first record's timestamp also encodes the file's creation moment; follow-up records carry their own timestamps so the file reads top-to-bottom as a chronological narrative."
+    },
+    "category": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Short kebab-case identifier set when the incident was opened (`stop-failure`, `permission-denied`, etc.). Present only on the initial record; follow-up records omit it because the category is fixed for the lifetime of the incident."
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["error", "warn", "info"],
+      "description": "Per-record severity. The initial record defaults to `error`; follow-ups default to `info`. Callers may override either."
+    },
+    "detail": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable summary or follow-up note. Empty strings are rejected at write time."
+    },
+    "extra": {
+      "type": "object",
+      "description": "Per-record event-specific fields. Contents are open-vocabulary — different categories carry different fields (tool_name, file_path, command, etc.). Always present, even when empty."
+    }
+  }
+}
