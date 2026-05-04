@@ -3,7 +3,9 @@
 Phase 2 shared module. Hooks (and eventually agents via a CLI
 wrapper) call :func:`emit` or :func:`emit_many` to append JSONL
 records to a date-rotated telemetry log under
-``<project>/.claude/telemetry/<YYYY-MM-DD>.jsonl``.
+``framework-memory/telemetry/<YYYY-MM-DD>.jsonl``. Phase 4 unified
+the path layout under :func:`hooks._memory.telemetry_dir`; the
+``CLAUDE_TELEMETRY_DIR`` env var still overrides it for tests.
 
 Writes are concurrency-safe via ``portalocker`` sidecar locks —
 two hooks firing simultaneously cannot interleave mid-record.
@@ -21,29 +23,20 @@ Event: N/A (shared module, not a hook)
 from __future__ import annotations
 
 import json
-import os
 import re
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from hooks._hook_shared import get_project_dir
+from hooks._memory import telemetry_dir
 from hooks._os_safe import locked_open
 
 _CATEGORY_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 
-def _telemetry_dir() -> Path:
-    """Resolve the telemetry directory. ``CLAUDE_TELEMETRY_DIR`` overrides."""
-    override = os.environ.get("CLAUDE_TELEMETRY_DIR")
-    if override:
-        return Path(override).resolve()
-    return get_project_dir() / ".claude" / "telemetry"
-
-
 def _log_path_for(now: datetime) -> Path:
-    return _telemetry_dir() / f"{now.strftime('%Y-%m-%d')}.jsonl"
+    return telemetry_dir() / f"{now.strftime('%Y-%m-%d')}.jsonl"
 
 
 def _build_record(category: str, data: dict[str, Any], *, now: datetime) -> dict[str, Any]:

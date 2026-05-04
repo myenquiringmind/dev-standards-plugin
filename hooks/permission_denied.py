@@ -1,7 +1,7 @@
 """Record an incident when CC reports a PermissionDenied event.
 
 Sibling to ``stop_failure``. Both wrap ``_incident.write_incident``
-to produce one append-only ``.claude/incidents/<YYYY-MM>/INC-<ulid>.jsonl``
+to produce one append-only ``framework-memory/incidents/<YYYY-MM>/INC-<ulid>.jsonl``
 record per failure event. The split:
 
 - ``stop_failure`` → CC could not complete the Stop handshake.

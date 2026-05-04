@@ -6,7 +6,7 @@ closed-loop agents later consume. The split:
 
 - ``post_tool_failure`` → rolling in-memory log for the *current* session
   (quick-glance debugging breadcrumbs, capped at 50 entries).
-- ``stop_failure`` → append-only ``.claude/incidents/<YYYY-MM>/INC-<ulid>.jsonl``
+- ``stop_failure`` → append-only ``framework-memory/incidents/<YYYY-MM>/INC-<ulid>.jsonl``
   record meant to survive the session (incident-retrospective input).
 
 A StopFailure event only fires when CC itself is unable to cleanly

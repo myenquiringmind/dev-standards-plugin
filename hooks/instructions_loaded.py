@@ -2,7 +2,7 @@
 
 Fires on the InstructionsLoaded event. Records one
 ``instructions-loaded`` telemetry entry per fire under
-``<project>/.claude/telemetry/<YYYY-MM-DD>.jsonl`` containing the
+``framework-memory/telemetry/<YYYY-MM-DD>.jsonl`` containing the
 list of loaded paths plus a count. Phase 4's
 ``closed-loop-quality-scorer`` correlates session outcomes against
 which rules were actively in scope; that pipeline is the consumer
