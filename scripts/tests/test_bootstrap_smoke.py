@@ -1,7 +1,7 @@
 """Tests for scripts/bootstrap_smoke.py.
 
 Unit-tests focus on the smoke runner's orchestration, result reporting,
-and frontmatter parsing. The 13 assertion functions are not exhaustively
+and frontmatter parsing. The assertion functions are not exhaustively
 unit-tested here — their full exercise is the smoke test itself, which
 this suite runs via ``run_all`` against the real tree in one test.
 """
@@ -44,14 +44,15 @@ class TestFrontmatterParser:
 
 
 class TestRealTreeSmokeRun:
-    """Single integration test: running against the real repo passes 13/13."""
+    """Single integration test: running against the real repo passes 28/28
+    (Phase 1+2+3 exit gate)."""
 
-    def test_real_tree_passes_all_13(self) -> None:
+    def test_real_tree_passes_all_28(self) -> None:
         project_root = Path(__file__).resolve().parents[2]
         results = bs.run_all(project_root)
         failed = [r for r in results if not r.passed]
-        assert len(results) == 13
-        assert not failed, "\n".join(f"  {r.number}/13 {r.name}: {r.detail}" for r in failed)
+        assert len(results) == 28
+        assert not failed, "\n".join(f"  {r.number}/28 {r.name}: {r.detail}" for r in failed)
 
 
 class TestMainCLIShape:
@@ -74,9 +75,9 @@ class TestMainCLIShape:
         rc = bs.main(["--root", "."])
 
         out = capsys.readouterr().out
-        assert "1/13 [PASS] alpha" in out
-        assert "2/13 [PASS] beta - with detail" in out
-        assert "3/13 [FAIL] gamma - oops" in out
+        assert "1/3 [PASS] alpha" in out
+        assert "2/3 [PASS] beta - with detail" in out
+        assert "3/3 [FAIL] gamma - oops" in out
         assert "2/3 passed" in out
         assert "FAILED" in out
         assert rc == 1
