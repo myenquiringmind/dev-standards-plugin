@@ -13,7 +13,9 @@ axes:
    bottom as one narrative.
 3. **Persistence model.** One file per incident, not one file per
    day. Grouped into month-subdirectories so listings stay
-   manageable: ``.claude/incidents/<YYYY-MM>/INC-<ulid>.jsonl``.
+   manageable: ``framework-memory/incidents/<YYYY-MM>/INC-<ulid>.jsonl``.
+   Phase 4 unified the path layout under ``_memory.incident_dir()``;
+   the ``CLAUDE_INCIDENTS_DIR`` env var still overrides it for tests.
 
 Never raises. Never blocks. I/O failure logs to stderr and
 returns an empty string (for ``write_incident``) or ``None`` (for
@@ -25,7 +27,6 @@ Event: N/A (shared module, not a hook)
 from __future__ import annotations
 
 import json
-import os
 import re
 import secrets
 import sys
@@ -34,7 +35,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from hooks._hook_shared import get_project_dir
+from hooks._memory import incident_dir
 from hooks._os_safe import locked_open
 
 _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
@@ -58,22 +59,14 @@ def _generate_ulid() -> str:
     return "".join(chars)
 
 
-def _incidents_dir() -> Path:
-    """Resolve the incidents root directory. ``CLAUDE_INCIDENTS_DIR`` overrides."""
-    override = os.environ.get("CLAUDE_INCIDENTS_DIR")
-    if override:
-        return Path(override).resolve()
-    return get_project_dir() / ".claude" / "incidents"
-
-
 def _incident_path(ulid: str, when: datetime) -> Path:
-    month_dir = _incidents_dir() / when.strftime("%Y-%m")
+    month_dir = incident_dir() / when.strftime("%Y-%m")
     return month_dir / f"INC-{ulid}.jsonl"
 
 
 def _find_incident_file(ulid: str) -> Path | None:
     """Locate an existing incident file by ULID. Returns ``None`` if not found."""
-    root = _incidents_dir()
+    root = incident_dir()
     if not root.is_dir():
         return None
     filename = f"INC-{ulid}.jsonl"
