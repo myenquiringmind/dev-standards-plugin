@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-standards-plugin/schemas/reports/api-breaking-changes.schema.json",
+  "title": "API Breaking-Change Report",
+  "description": "Produced by api-breaking-change-analyzer. Consumes two api-contract.json snapshots — `before` and `after` — and emits the detected differences classified by breaking-ness and severity. Phase 3 ships the contract only — first-class breaking-change rules cover OpenAPI; tRPC and GraphQL get presence + heuristic-count diffs with full breaking-change analysis deferred to Phase 6+ stack reviewers. Plan, not verdict; downstream Design / API-review agents consume it to inform decisions.",
+  "type": "object",
+  "required": ["generated_at", "project_dir", "inputs", "summary", "changes"],
+  "additionalProperties": false,
+  "properties": {
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "project_dir": {
+      "type": "string",
+      "minLength": 1
+    },
+    "inputs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/InputReport" },
+      "description": "One entry per api-contract.json snapshot the analyzer attempted to consume — `before` (the baseline) and `after` (the candidate change set). Both expected for a real diff; either may be absent (with status reflecting that)."
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "changes_count",
+        "changes_by_breaking",
+        "changes_by_severity",
+        "inputs_consumed",
+        "analysis_status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "changes_count": { "type": "integer", "minimum": 0 },
+        "changes_by_breaking": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["breaking", "potentially-breaking", "non-breaking"],
+          "properties": {
+            "breaking": { "type": "integer", "minimum": 0 },
+            "potentially-breaking": { "type": "integer", "minimum": 0 },
+            "non-breaking": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "changes_by_severity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["high", "medium", "low"],
+          "properties": {
+            "high": { "type": "integer", "minimum": 0 },
+            "medium": { "type": "integer", "minimum": 0 },
+            "low": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "inputs_consumed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of inputs[] entries with available=true. <= len(inputs)."
+        },
+        "analysis_status": {
+          "type": "string",
+          "enum": ["analyzed", "no_after", "no_before", "skipped"],
+          "description": "analyzed = both snapshots loaded and a diff was produced; no_after = before loaded but no candidate snapshot supplied (baseline view only); no_before = no baseline to compare against (all after-contracts surface as `contract_added`, none `breaking`); skipped = preconditions not met (e.g. both inputs unloadable)."
+        }
+      }
+    },
+    "changes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Change" }
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "$defs": {
+    "InputReport": {
+      "type": "object",
+      "required": ["role", "path", "available"],
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": ["before", "after"],
+          "description": "Which side of the diff this snapshot represents. At most one entry per role; the analyzer expects exactly one of each for an `analyzed` outcome."
+        },
+        "path": { "type": "string", "minLength": 1 },
+        "available": { "type": "boolean" },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The api-contract.json snapshot's own generated_at. Required when available=true; omitted when available=false."
+        },
+        "note": {
+          "type": "string",
+          "description": "Per-input note (e.g. 'snapshot missing', 'snapshot did not parse'). Omitted when available=true and the snapshot loaded cleanly."
+        }
+      }
+    },
+    "Change": {
+      "type": "object",
+      "required": ["kind", "object", "breaking", "severity", "description", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Open-vocabulary category. Common Phase 3 values — contract_added, contract_removed, contract_kind_mismatch, path_added, path_removed, method_added, method_removed, operationId_changed, info_version_changed, router_added, router_removed, types_count_changed, queries_count_changed, mutations_count_changed, subscriptions_count_changed, snapshot_invalid."
+        },
+        "object": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable identifier of the contract object the change touches — e.g. `api/openapi.yaml` (contract), `GET /users/{id}` (path+method), `listUsers` (operationId), `src/server/routers/_app.ts:userRouter` (tRPC router), `schema/schema.graphql` (GraphQL contract)."
+        },
+        "breaking": {
+          "type": "string",
+          "enum": ["breaking", "potentially-breaking", "non-breaking"],
+          "description": "breaking = a conformant client written against `before` will fail against `after` (path/method removed, contract removed). potentially-breaking = client may fail depending on usage (operationId renamed, tRPC router renamed, GraphQL counts decreased). non-breaking = additive only (path/method added, info_version bumped, summary text changed, GraphQL counts increased)."
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["high", "medium", "low"],
+          "description": "high = a breaking change to a contract with significant traffic/exposure (Phase 6+ reviewers will refine using usage data); medium = potentially-breaking, or breaking on low-traffic paths; low = non-breaking changes that operators may still want to know about."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "description": "Pointers to specific snapshot fields supporting this change — contract source_file paths, OpenAPI path+method tuples, router names, GraphQL count tuples. A change without evidence is opinion, not a diff."
+        }
+      }
+    }
+  }
+}
