@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-standards-plugin/schemas/reports/migration-plan.schema.json",
+  "title": "Database Migration Plan Report",
+  "description": "Produced by db-migration-planner. Consumes the current db-schema.json snapshot and (optionally) a target snapshot of the same shape; produces an ordered migration plan as detected changes + risk-classified, reversibility-tagged steps. Phase 3 ships the contract only — full execution-side support arrives Phase 4+ when migration-applier write-tier agents land. Plan, not verdict; downstream Design / Migration agents consume it to inform decisions.",
+  "type": "object",
+  "required": ["generated_at", "project_dir", "inputs", "summary", "changes", "steps"],
+  "additionalProperties": false,
+  "properties": {
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "project_dir": {
+      "type": "string",
+      "minLength": 1
+    },
+    "inputs": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/InputReport" },
+      "description": "One entry per db-schema.json snapshot the planner attempted to consume — the `current` snapshot (always expected) and the `target` snapshot (optional; absent when the plan is a structural baseline rather than a diff)."
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "changes_count",
+        "steps_count",
+        "steps_by_risk",
+        "inputs_consumed",
+        "target_provided",
+        "planning_status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "changes_count": { "type": "integer", "minimum": 0 },
+        "steps_count": { "type": "integer", "minimum": 0 },
+        "steps_by_risk": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["high", "medium", "low"],
+          "properties": {
+            "high": { "type": "integer", "minimum": 0 },
+            "medium": { "type": "integer", "minimum": 0 },
+            "low": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "inputs_consumed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of inputs[] entries with available=true. <= len(inputs)."
+        },
+        "target_provided": {
+          "type": "boolean",
+          "description": "True when a `target` input was provided (with or without available=true). Disambiguates the `no_target` planning status from a target that simply failed to load."
+        },
+        "planning_status": {
+          "type": "string",
+          "enum": ["planned", "no_target", "no_current", "skipped"],
+          "description": "planned = both snapshots loaded and a diff was produced; no_target = current loaded but no target snapshot supplied (structural baseline only); no_current = current snapshot missing or unloadable (cannot diff); skipped = preconditions not met (e.g. db-schema-scanner reported engine=null)."
+        }
+      }
+    },
+    "changes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Change" }
+    },
+    "steps": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Step" }
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "$defs": {
+    "InputReport": {
+      "type": "object",
+      "required": ["role", "path", "available"],
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": ["current", "target"],
+          "description": "Which side of the diff this snapshot represents. Exactly one `current` entry is expected; at most one `target`."
+        },
+        "path": { "type": "string", "minLength": 1 },
+        "available": { "type": "boolean" },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The db-schema.json snapshot's own generated_at. Required when available=true; omitted when available=false."
+        },
+        "note": {
+          "type": "string",
+          "description": "Per-input note (e.g. 'snapshot missing', 'engine=null in source report'). Omitted when available=true and the snapshot parsed cleanly."
+        }
+      }
+    },
+    "Change": {
+      "type": "object",
+      "required": ["kind", "object", "description", "evidence"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Open-vocabulary category. Common Phase 3 values: table_added, table_removed, column_added, column_removed, column_type_changed, column_nullable_changed, column_default_changed, index_added, index_removed, constraint_added, constraint_removed, relationship_added, relationship_removed, relationship_action_changed, snapshot_invalid."
+        },
+        "object": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable identifier of the schema object the change touches — e.g. `users` (table), `users.email` (column), `users_email_key` (index/constraint), `orders.user_id -> users.id` (relationship)."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "minItems": 1,
+          "description": "Pointers to specific snapshot fields supporting this change — table names, column tuples, index definitions, constraint kinds. A change without evidence is opinion, not a diff."
+        }
+      }
+    },
+    "Step": {
+      "type": "object",
+      "required": ["order", "description", "risk", "reversibility", "related_changes"],
+      "additionalProperties": false,
+      "properties": {
+        "order": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based execution order. Steps are intended to run sequentially; concurrent application is out of scope for this skeleton."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "risk": {
+          "type": "string",
+          "enum": ["low", "medium", "high"],
+          "description": "low = additive, no data motion (CREATE TABLE, ADD nullable COLUMN, ADD INDEX CONCURRENTLY); medium = additive with backfill or blocking lock (ADD NOT NULL with default, ADD UNIQUE INDEX without CONCURRENTLY); high = destructive or potentially data-losing (DROP COLUMN, narrow type, DROP INDEX with replacement)."
+        },
+        "reversibility": {
+          "type": "string",
+          "enum": ["reversible", "irreversible"],
+          "description": "reversible = exact inverse step is safe and complete (DROP TABLE iff just-created, DROP INDEX); irreversible = inverse cannot recover the prior state (DROP COLUMN loses data, type narrowing loses precision)."
+        },
+        "related_changes": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 },
+          "uniqueItems": true,
+          "description": "Indexes into the top-level changes[] array supporting this step. Empty array means the step is preparatory (e.g. a backup) rather than detected from a diff."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional per-step note (e.g. 'requires backfill', 'requires application downtime', 'apply during low-traffic window')."
+        }
+      }
+    }
+  }
+}
