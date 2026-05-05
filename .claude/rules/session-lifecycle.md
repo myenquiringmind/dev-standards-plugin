@@ -93,6 +93,7 @@ When context usage is high or the session is ending:
 2. Update session memory with: what was done, what remains, the current git state, any decisions made
 3. Note the current branch and commit hash
 4. List the next objective and its acceptance criteria
+5. **Issue `/clear`.** A handoff without `/clear` is incomplete — the agent stays in the same context, the same token budget, the same drift toward compaction. The session-state artifact written in steps 2-4 is the *durable* signal the next session reads; CC's compaction summary is *not*. Compaction surrenders the principle "never enter compaction." `/clear` is what guarantees the next session starts from your handoff artifact, not from a degraded summary of this one. This step is not optional.
 
 The next session reads this state and picks up from step 2 (GAP) of the next objective.
 
