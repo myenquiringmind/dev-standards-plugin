@@ -14,9 +14,18 @@ blocking is not an option. The intent is to give the author an
 immediate signal when a hand-edit drifts the file out of contract,
 ahead of the next ``/validate`` cycle catching it.
 
+Phase 4 stream 3 added a graph-history snapshot: every change to
+``config/graph-registry.json`` writes a copy of the current file
+content to ``framework-memory/graph-history/<ISO-timestamp>.json``
+via :func:`hooks._os_safe.atomic_write`. The snapshot is taken
+even when the file does not validate — Phase 10 retrospectives
+benefit from seeing both the broken state and the recovery.
+Profile changes are not snapshotted; the graph registry is the
+load-bearing structural artifact.
+
 Off-watch paths are silent no-ops. The hook never blocks. All
 fail-open cases (missing file, missing schema, malformed JSON,
-non-JSON content) log to stderr and exit 0.
+non-JSON content, snapshot I/O failure) log to stderr and exit 0.
 
 Event: FileChanged
 Matcher: *
@@ -26,12 +35,15 @@ from __future__ import annotations
 
 import json
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
 from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
 from hooks._hook_shared import get_project_dir, read_hook_input
+from hooks._memory import graph_history_dir
+from hooks._os_safe import atomic_write
 
 _SCHEMA_FOR_REGISTRY: str = "graph-registry.schema.json"
 _SCHEMA_FOR_PROFILE: str = "profile.schema.json"
@@ -122,6 +134,51 @@ def _validate(instance: Any, schema: dict[str, Any], file_path: Path) -> None:
     )
 
 
+def _snapshot_filename(now: datetime) -> str:
+    """Filename-safe ISO-8601 with millisecond precision.
+
+    ``:`` is invalid on Windows file systems and ``.`` is reserved
+    for the extension, so both are replaced with ``-`` to keep the
+    timestamp readable but cross-platform safe. Millisecond
+    precision distinguishes snapshots taken in rapid succession
+    (e.g. when a session edits the registry twice in the same
+    second).
+    """
+    iso = now.strftime("%Y-%m-%dT%H-%M-%S")
+    millis = f"{now.microsecond // 1000:03d}"
+    return f"{iso}-{millis}Z.json"
+
+
+def _snapshot_registry(file_path: Path) -> None:
+    """Snapshot the current registry content to graph-history/.
+
+    Reads the file as text (no JSON parse — the snapshot must
+    capture the bytes the author wrote, including the broken
+    states a Phase 10 retrospective will want to inspect). Writes
+    via :func:`atomic_write` so concurrent FileChanged events
+    cannot interleave mid-snapshot. Logs and returns silently on
+    any I/O failure — the graph-history is observability, not
+    control flow.
+    """
+    try:
+        content = file_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        print(
+            f"[file_changed] could not read registry for snapshot {file_path}: {exc}",
+            file=sys.stderr,
+        )
+        return
+
+    target = graph_history_dir() / _snapshot_filename(datetime.now(UTC))
+    try:
+        atomic_write(target, content)
+    except OSError as exc:
+        print(
+            f"[file_changed] could not write graph-history snapshot {target}: {exc}",
+            file=sys.stderr,
+        )
+
+
 def main() -> int:
     data = read_hook_input()
 
@@ -137,6 +194,9 @@ def main() -> int:
     schema_name = _schema_for(target, project_dir)
     if schema_name is None:
         return 0
+
+    if schema_name == _SCHEMA_FOR_REGISTRY:
+        _snapshot_registry(target)
 
     instance = _load_json(target, "config")
     if instance is None:
