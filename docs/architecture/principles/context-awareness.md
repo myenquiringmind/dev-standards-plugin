@@ -24,6 +24,8 @@ Claude Code auto-compacts at ~83.5% of the active model's window. Compaction is 
 
 `hooks/context_budget.py` computes the hard cut at session start, monitors the running token count (via `statusline.py`), and exits 2 on UserPromptSubmit when the cut is reached. The user cannot work further until `/handoff` runs. Compaction is **forbidden**, not avoided.
 
+`/handoff` is two acts, not one: the agent writes the durable session-state artifact, then issues `/clear`. Without `/clear` the agent stays in the same compacting context — the artifact gets written but is never used, and the next user prompt re-enters the same failure trajectory. `.claude/rules/session-lifecycle.md` codifies `/clear` as step 5 of the Handoff Protocol; it is not optional.
+
 ## Guidelines — informational, not enforced
 
 Because LITM degrades attention quality well below the model's nominal capacity, the framework carries **guideline values** that `meta-session-planner` uses when sizing and decomposing work:
