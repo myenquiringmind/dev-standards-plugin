@@ -18,12 +18,29 @@ from typing import Any
 # ---------------------------------------------------------------------------
 # Context budget thresholds
 # ---------------------------------------------------------------------------
+#
+# These thresholds are expressed in **framework_pct** space — the value
+# ``statusline.py`` writes to ``.claude/.context_pct``. ``framework_pct``
+# is ``raw_window_pct / (CC_COMPACTION_FRACTION * HARD_CUT_FRACTION)``:
+#
+# * ``framework_pct == 100`` is exactly the framework hard cut
+#   (``compute_hard_cut(window)``, ~62.625% of the active model window).
+# * ``framework_pct >= 100`` means the session is at or past the hard cut
+#   and ``context_budget.py`` must block (exit 2) until ``/handoff``.
+# * ``framework_pct >= 133`` means CC auto-compaction has already fired —
+#   too late for the framework to enforce its own principle.
+#
+# ``CRITICAL_CONTEXT_PCT`` is therefore pinned to 100 (the principle).
+# ``WARN_CONTEXT_PCT`` sits at 80% of the hard cut, leaving the planner a
+# few-turn cushion to land a clean ``/handoff`` before the block fires.
 
-#: Context percentage at which advisory warnings begin.
+#: Context percentage at which advisory warnings begin (80% of hard cut).
 WARN_CONTEXT_PCT: int = 80
 
-#: Context percentage at which the hard block fires (must /handoff).
-CRITICAL_CONTEXT_PCT: int = 95
+#: Context percentage at which the hard block fires — exactly the framework
+#: hard cut in framework_pct space. See ``compute_hard_cut`` and
+#: ``compute_hard_cut_pct`` for the underlying token computation.
+CRITICAL_CONTEXT_PCT: int = 100
 
 #: Fraction of the active model's window where CC auto-compacts.
 CC_COMPACTION_FRACTION: float = 0.835
@@ -257,6 +274,28 @@ def compute_hard_cut(model_window: int) -> int:
     """
     compaction_threshold = int(model_window * CC_COMPACTION_FRACTION)
     return int(compaction_threshold * HARD_CUT_FRACTION)
+
+
+def compute_hard_cut_pct(model_window: int) -> int:
+    """Compute the framework's dynamic hard cut as a percentage of the window.
+
+    For any positive ``model_window``, this returns ~62 — the
+    constant ``int(CC_COMPACTION_FRACTION * HARD_CUT_FRACTION * 100)``.
+    The function is exposed for hooks and agents that operate in raw
+    window-pct space (where the cache is unavailable), so the
+    threshold is derived from the same primitives as
+    ``compute_hard_cut`` rather than rehardcoded.
+
+    Args:
+        model_window: The active model's context window in tokens.
+
+    Returns:
+        Hard cut as an integer percentage of the model window, or
+        0 when ``model_window`` is non-positive.
+    """
+    if model_window <= 0:
+        return 0
+    return compute_hard_cut(model_window) * 100 // model_window
 
 
 # ---------------------------------------------------------------------------

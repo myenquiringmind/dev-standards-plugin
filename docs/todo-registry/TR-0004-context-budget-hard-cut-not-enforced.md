@@ -19,5 +19,10 @@
   3. **Cache-population fix (separate PR):** confirm whether `statusline.py` is firing and writing `.claude/.context_pct` under current CC. If not, diagnose. If `statusline` is unreliable, add a fallback path: emit `.context_pct` from `session_checkpoint.py` (PostToolUse) or `instructions_loaded.py` (SessionStart) so the cache exists from turn 1. A fail-open hook on a missing cache file is a silent safety regression — it should be at least advisory (warn that monitoring is offline).
   4. **Test coverage:** add `hooks/tests/test_context_budget.py` cases for: cache missing → advisory stderr, not silent; cache at warn → advisory; cache at hard cut → exit 2; integration with `compute_hard_cut()`.
   5. **Audit pass:** grep for other principle-document claims that have no enforcing code. The same pattern (principle says X, hook is silent fail-open under common conditions) likely repeats elsewhere.
-- **Blocks:** none directly, but every long-running session is at risk of repeating this incident until step 2 + 3 land. Mark advisory-but-urgent.
-- **Status:** OPEN (this PR ships step 1 only — the doc fix; steps 2-5 are deferred to separate PRs).
+- **Blocks:** none directly, but every long-running session is at risk of repeating this incident until step 3 (cache-population fallback) lands. Mark advisory-but-urgent.
+- **Status:** PARTIAL.
+  - Step 1 (doc fix) — ✅ shipped in PR #95.
+  - Step 2 (threshold + ``compute_hard_cut`` rewiring) — ✅ shipped in PR #96. ``CRITICAL_CONTEXT_PCT`` now = 100 (the framework hard cut in framework_pct space); ``compute_hard_cut_pct`` exposed for window-pct callers; thresholds documented as living in framework_pct space.
+  - Step 3 (cache-population fallback) — partial. PR #96 changed the cache-missing path from silent fail-open to a stderr advisory ("monitoring offline"). The actual fallback writer (diagnose ``statusline.py``, or emit ``.context_pct`` from ``session_checkpoint.py`` / ``instructions_loaded.py``) is still outstanding.
+  - Step 4 (test coverage) — ✅ shipped. ``hooks/tests/test_context_budget.py`` and ``hooks/tests/test__hook_shared.py`` cover all four paths (cache-missing advisory, under-warn silent, warn band, hard-cut block) and the new ``compute_hard_cut_pct`` primitive.
+  - Step 5 (audit pass for principle docs without enforcing code) — outstanding.

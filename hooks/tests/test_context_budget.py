@@ -22,7 +22,7 @@ def _patch_io(
 
 
 class TestCacheAbsent:
-    def test_exits_zero_silently(
+    def test_exits_zero_with_offline_advisory(
         self,
         tmp_dir: Path,
         monkeypatch: pytest.MonkeyPatch,
@@ -32,7 +32,9 @@ class TestCacheAbsent:
         rc = context_budget.main()
         captured = capsys.readouterr()
         assert rc == 0
-        assert captured.err == ""
+        assert "monitoring offline" in captured.err
+        assert ".context_pct" in captured.err
+        assert "statusline" in captured.err
         assert captured.out == ""
 
 
@@ -84,11 +86,12 @@ class TestAtCritical:
         monkeypatch: pytest.MonkeyPatch,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
-        _patch_io(monkeypatch, 95, tmp_dir)
+        _patch_io(monkeypatch, 100, tmp_dir)
         rc = context_budget.main()
         captured = capsys.readouterr()
         assert rc == 2
-        assert "95%" in captured.err
+        assert "100%" in captured.err
+        assert "hard cut" in captured.err
         assert "Commit current work" in captured.err  # HANDOFF_STEPS snippet
 
     def test_above_critical_exits_two(
@@ -97,6 +100,19 @@ class TestAtCritical:
         monkeypatch: pytest.MonkeyPatch,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
-        _patch_io(monkeypatch, 99, tmp_dir)
+        _patch_io(monkeypatch, 133, tmp_dir)
         rc = context_budget.main()
         assert rc == 2
+
+    def test_just_below_critical_only_advises(
+        self,
+        tmp_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        # 99 is in the warn band; the principle-aligned hard cut is 100.
+        _patch_io(monkeypatch, 99, tmp_dir)
+        rc = context_budget.main()
+        captured = capsys.readouterr()
+        assert rc == 0
+        assert "99%" in captured.err
