@@ -20,6 +20,7 @@ from hooks._hook_shared import (
     STAMP_TTL,
     WARN_CONTEXT_PCT,
     compute_hard_cut,
+    compute_hard_cut_pct,
     get_current_branch,
     get_project_dir,
     is_pack_active,
@@ -182,6 +183,35 @@ class TestComputeHardCut:
     def test_returns_int(self) -> None:
         result = compute_hard_cut(200_000)
         assert isinstance(result, int)
+
+
+# ---------------------------------------------------------------------------
+# compute_hard_cut_pct
+# ---------------------------------------------------------------------------
+
+
+class TestComputeHardCutPct:
+    def test_200k_window(self) -> None:
+        """Hard cut as percentage of any normal window is ~62."""
+        assert compute_hard_cut_pct(200_000) == 62
+
+    def test_1m_window(self) -> None:
+        assert compute_hard_cut_pct(1_000_000) == 62
+
+    def test_zero_window(self) -> None:
+        assert compute_hard_cut_pct(0) == 0
+
+    def test_negative_window(self) -> None:
+        assert compute_hard_cut_pct(-1) == 0
+
+    def test_returns_int(self) -> None:
+        assert isinstance(compute_hard_cut_pct(200_000), int)
+
+    def test_consistent_with_compute_hard_cut(self) -> None:
+        """compute_hard_cut_pct must agree with compute_hard_cut for any window."""
+        for window in (100_000, 200_000, 500_000, 1_000_000):
+            expected_pct = compute_hard_cut(window) * 100 // window
+            assert compute_hard_cut_pct(window) == expected_pct
 
 
 # ---------------------------------------------------------------------------
