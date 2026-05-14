@@ -39,9 +39,14 @@
           "type": "command",
           "command": "uv run python -m hooks.session_start_framework_memory",
           "timeout": 10
+        },
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.context_pct_writer",
+          "timeout": 10
         }
       ],
-      "description": "Restore session state, inject additionalContext, audit .gitignore for critical patterns, stamp .language_profile.json from config/profiles/*.json detection, check the marketplace clone for plugin updates (24h cache), and initialise the framework-memory directory tree (Phase 4 substrate)"
+      "description": "Restore session state, inject additionalContext, audit .gitignore for critical patterns, stamp .language_profile.json from config/profiles/*.json detection, check the marketplace clone for plugin updates (24h cache), initialise the framework-memory directory tree (Phase 4 substrate), and seed .claude/.context_pct so context_budget can enforce the hard cut from turn 1 (TR-0004 step 3)"
     }
   ],
 
@@ -378,9 +383,14 @@
           "type": "command",
           "command": "uv run python -m hooks.post_tool_failure",
           "timeout": 10
+        },
+        {
+          "type": "command",
+          "command": "uv run python -m hooks.context_pct_writer",
+          "timeout": 10
         }
       ],
-      "description": "Append failed tool invocations to the rolling error log"
+      "description": "Append failed tool invocations to the rolling error log; refresh .claude/.context_pct from transcript size when statusline is silent (TR-0004 step 3)"
     }
   ]
 }

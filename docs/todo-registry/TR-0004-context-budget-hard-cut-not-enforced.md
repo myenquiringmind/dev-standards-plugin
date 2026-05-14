@@ -23,6 +23,6 @@
 - **Status:** PARTIAL.
   - Step 1 (doc fix) — ✅ shipped in PR #95.
   - Step 2 (threshold + ``compute_hard_cut`` rewiring) — ✅ shipped in PR #96. ``CRITICAL_CONTEXT_PCT`` now = 100 (the framework hard cut in framework_pct space); ``compute_hard_cut_pct`` exposed for window-pct callers; thresholds documented as living in framework_pct space.
-  - Step 3 (cache-population fallback) — partial. PR #96 changed the cache-missing path from silent fail-open to a stderr advisory ("monitoring offline"). The actual fallback writer (diagnose ``statusline.py``, or emit ``.context_pct`` from ``session_checkpoint.py`` / ``instructions_loaded.py``) is still outstanding.
+  - Step 3 (cache-population fallback) — ✅ shipped. ``hooks/context_pct_writer.py`` runs on SessionStart and PostToolUse (matcher ``*``) and estimates ``framework_pct`` from the transcript file size, writing ``.claude/.context_pct``. Defers to fresh statusline writes (mtime within ``STATUSLINE_STALENESS_SECONDS``) so the accurate reading wins when wired. The estimate biases conservative (over-counts tokens, assumes a 200K window) — error pushes the warn/block earlier, the safe failure mode.
   - Step 4 (test coverage) — ✅ shipped. ``hooks/tests/test_context_budget.py`` and ``hooks/tests/test__hook_shared.py`` cover all four paths (cache-missing advisory, under-warn silent, warn band, hard-cut block) and the new ``compute_hard_cut_pct`` primitive.
   - Step 5 (audit pass for principle docs without enforcing code) — outstanding.

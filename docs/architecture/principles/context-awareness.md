@@ -73,6 +73,8 @@ Compresses everything older into a structured summary with sections: Decisions m
 
 `hooks/statusline.py` is the plumbing: it continuously writes the current token count (estimated from the transcript) and current phase to `.claude/.context_pct`. Every other context-aware hook reads this cache.
 
+Statusline is a CC `statusLine` command, not a hook, so plugins cannot auto-wire it — the user must add it to `~/.claude/settings.json` (see `docs/guides/statusline-wiring.md`). To stop a missing or silent statusline from disabling the hard cut, `hooks/context_pct_writer.py` runs on SessionStart and every PostToolUse to estimate `framework_pct` from the transcript file size and write `.claude/.context_pct`. It defers to fresh statusline output (mtime within `STATUSLINE_STALENESS_SECONDS`), so statusline's accurate reading wins when wired; the fallback fills the gap when it is not. The estimate biases conservative (overcounts tokens, assumes a 200K window), so any error fires the warn or block earlier — the safe failure mode for monitoring.
+
 ## Ten Modelling mechanisms + one new primitive
 
 Context awareness is mechanism #11 — the one the Modelling project didn't have because single-session work below 200K didn't need it. With 1M-window models and long-running framework development, it's non-negotiable.

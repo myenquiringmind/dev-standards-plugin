@@ -49,6 +49,42 @@ CC_COMPACTION_FRACTION: float = 0.835
 HARD_CUT_FRACTION: float = 0.75
 
 # ---------------------------------------------------------------------------
+# Context-percentage fallback writer (TR-0004 step 3)
+# ---------------------------------------------------------------------------
+#
+# ``statusline.py`` is a CC ``statusLine`` command, not a hook — plugins
+# cannot ship the wiring, the user must add it to ``~/.claude/settings.json``
+# (see ``docs/guides/statusline-wiring.md``). Until that happens (or when
+# CC does not invoke the statusline at session start), ``.claude/.context_pct``
+# does not exist and ``context_budget.py`` runs in advisory-only mode. The
+# fallback writer (``hooks/context_pct_writer.py``) closes that gap by
+# estimating ``framework_pct`` from the transcript file size.
+#
+# The constants below are deliberately conservative: a smaller bytes-per-
+# token estimate over-counts tokens, and the smallest common window
+# (Sonnet/Opus 200K) over-reports ``framework_pct`` when the actual model
+# is Opus 1M. Both biases push the warn/block earlier, which is the safe
+# failure mode for a monitoring fallback.
+
+#: Default model window assumed when the active window is unknown.
+#: Sonnet and Opus base both ship at 200K; Opus 1M is opt-in. Using the
+#: smaller value over-reports framework_pct on a 1M session, which fires
+#: the handoff earlier than strictly necessary — safe vs the alternative
+#: (under-reporting and missing the cut).
+FALLBACK_WINDOW_TOKENS: int = 200_000
+
+#: Conservative bytes-per-token estimate for the JSONL transcript. Real
+#: English text is closer to 3.5-4 bytes per token; JSON overhead pushes
+#: this up. Picking 3 over-counts tokens, biasing framework_pct high.
+BYTES_PER_TOKEN_ESTIMATE: int = 3
+
+#: How recently ``.claude/.context_pct`` must have been written for the
+#: fallback to defer to it. When ``statusline.py`` is wired it fires on
+#: every CC turn, so a value newer than this is taken as evidence the
+#: statusline is active and producing the authoritative reading.
+STATUSLINE_STALENESS_SECONDS: int = 60
+
+# ---------------------------------------------------------------------------
 # Handoff protocol steps
 # ---------------------------------------------------------------------------
 
