@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-standards-plugin/schemas/reports/quality-scores.schema.json",
+  "title": "Quality Scores",
+  "description": "Produced by closed-loop-quality-scorer (Phase 4 stream 5). Aggregates per-agent quality metrics from framework-memory/telemetry/<YYYY-MM-DD>.jsonl into a single framework-memory/quality-scores.json. The canonical consumer of telemetry records; Phase 5+ agents read this file to learn from prior runs instead of inventing their own storage. Precision is the only metric populated in Phase 4 — recall waits for reviewer-coverage data that lands Phase 6+, so recall fields are present but null.",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "summary", "agents"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1",
+      "description": "Schema version. Bumped when the record shape changes incompatibly so consumers can branch on it."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp of this aggregation run. Stale files are detectable by comparing against the newest telemetry date."
+    },
+    "summary": { "$ref": "#/$defs/Summary" },
+    "agents": {
+      "type": "object",
+      "description": "Per-agent scores keyed by agent name (the frontmatter `name`, e.g. `py-solid-dry-reviewer`). An agent with no telemetry in the window is simply absent — the map is sparse, not pre-seeded with every registered agent.",
+      "propertyNames": {
+        "pattern": "^(py|fe|db|api|pattern|antipattern|design|discover|research|doc|meta|validation|refactor|operate|maintain|deploy|security|testing|interop|bg|codebase|closed-loop)-[a-z0-9][a-z0-9-]*$"
+      },
+      "additionalProperties": { "$ref": "#/$defs/AgentScore" }
+    }
+  },
+  "$defs": {
+    "Summary": {
+      "type": "object",
+      "required": ["total_agents", "total_runs", "window_start", "window_end"],
+      "additionalProperties": false,
+      "description": "Aggregate roll-up across every agent in this run. Sits at the top so a consumer can size the dataset before walking the per-agent map.",
+      "properties": {
+        "total_agents": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of distinct agents with at least one telemetry record in the window. Equals the number of keys in `agents`."
+        },
+        "total_runs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Sum of `run_count` across every agent — the total telemetry records aggregated this run."
+        },
+        "window_start": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Timestamp of the earliest telemetry record aggregated, or null when no telemetry exists yet (a fresh framework-memory tree)."
+        },
+        "window_end": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "Timestamp of the latest telemetry record aggregated, or null when no telemetry exists yet."
+        }
+      }
+    },
+    "AgentScore": {
+      "type": "object",
+      "required": ["precision", "recall", "latency_ms_p95", "cost_usd_p95", "run_count", "last_updated"],
+      "additionalProperties": false,
+      "description": "One agent's aggregated metrics. precision = verdicts not overturned by the user / total verdicts; null when the agent emitted no verdict records (e.g. a scanner that produces reports, not verdicts). p95 latency/cost are null when the telemetry carried no duration/cost fields for this agent.",
+      "properties": {
+        "precision": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Fraction of this agent's verdicts the user did not overturn. null when no verdict records exist for the agent in the window."
+        },
+        "recall": {
+          "type": "null",
+          "description": "Always null in Phase 4. Recall requires reviewer-coverage data (ground-truth defects an agent should have caught) that lands Phase 6+ when stack reviewers ship. The field exists now so the schema is stable when that data arrives."
+        },
+        "latency_ms_p95": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "description": "95th-percentile wall-clock duration in milliseconds across this agent's runs. null when telemetry carried no duration field."
+        },
+        "cost_usd_p95": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "description": "95th-percentile token cost in USD across this agent's runs. null when telemetry carried no cost field."
+        },
+        "run_count": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of telemetry records aggregated for this agent. At least 1 — an agent absent from telemetry is absent from the map entirely."
+        },
+        "last_updated": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of this agent's most recent telemetry record."
+        }
+      }
+    }
+  }
+}
