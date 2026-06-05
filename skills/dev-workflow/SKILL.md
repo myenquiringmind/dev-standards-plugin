@@ -21,7 +21,7 @@ Never skip steps. The most common failures come from implementing without unders
 | Create plan | `/plan` | - |
 | Fix a bug | `/fix` | `@investigator` |
 | Validate changes | `/validate` | - |
-| Code review | `/review` | `@code-reviewer` |
+| Code review | `/review` | `@validation-code-reviewer` |
 | Write tests | - | `@test-writer` |
 | Update docs | - | `@doc-writer` |
 

@@ -61,10 +61,10 @@ Each domain has a dedicated agent with specific expertise:
 |--------|-------|-----------|
 | `logging` | `@logging-standards` | Structured logging, log levels, debug mode |
 | `error` | `@error-standards` | Try/catch patterns, error types, stack traces |
-| `type` | `@type-standards` | JSDoc types, TypeScript, mypy |
-| `lint` | `@lint-standards` | ESLint, ruff, auto-fix, rule config |
+| `type` | `@validation-type-safety-reviewer` | JSDoc types, TypeScript, mypy |
+| `lint` | `@validation-lint-reviewer` | ESLint, ruff, auto-fix, rule config |
 | `test` | `@test-standards` | Unit/integration tests, coverage, mocking |
-| `validation` | `@validation-standards` | Input validation, sanitization, security |
+| `validation` | `@validation-standards-reviewer` | Input validation, sanitization, security |
 | `git` | `@git-standards` | Conventional commits, branch naming |
 | `housekeeping` | `@housekeeping-standards` | Project layout, temp dirs, clutter |
 | `naming` | `@naming-standards` | File/function naming conventions |
