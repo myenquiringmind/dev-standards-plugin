@@ -20,7 +20,7 @@ git diff main...HEAD --name-only
 ```
 
 ### 2. Delegate Review
-Delegate to `@code-reviewer` agent with the identified files.
+Delegate to `@validation-code-reviewer` agent with the identified files.
 
 ### 3. Optional: Request Tests
 If coverage gaps found, delegate to `@test-writer` for test suggestions.

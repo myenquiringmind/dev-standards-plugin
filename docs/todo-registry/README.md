@@ -59,6 +59,7 @@ A future hook (Phase D or later) will validate: no PR merges with unresolved blo
 - [TR-0002](TR-0002-standardize-uv-across-framework-outputs.md) — **IN_PROGRESS** — sub-plan 1 (docs cleanup) CLOSED in commit `9948f25` (PR #21); sub-plan 2 (uv-env management agents: `operate-uv-env-initializer`, `operate-uv-dep-manager`, `maintain-uv-env-doctor`) OPEN and **unblocked** (the original blocker `meta-agent-scaffolder` shipped in Phase 1, not Phase 2 — claim was stale); deferred pending agent-catalog priorities, likely to be picked up alongside Phase 3+ scanner work
 - [TR-0003](TR-0003-memory-tier-mismatch-read-reason-agents.md) — **OPEN** — `memory: project` on 7+ merged read/reason-tier agents conflicts with `meta-agent-arch-doc-reviewer` rule; needs semantic clarification (read-inject vs write-access) before mass-fix
 - [TR-0004](TR-0004-context-budget-hard-cut-not-enforced.md) — **OPEN** — context-budget hard cut is principle-only; three concrete bugs (cache absent, threshold > compaction trigger, hook ignores `compute_hard_cut()`) leave `context_budget.py` silently fail-open. Doc-fix shipped; threshold/cache/test work deferred to follow-up PRs
+- [TR-0005](TR-0005-canonicalize-agentverdict-shape.md) — **OPEN** — three AgentVerdict shapes coexist (shipped validation agents `{agent,status,errors}`; Phase 5 spec `{ok,reason,confidence,evidence}`; cluster agents `{agent,status,confidence,findings}`). Pick one canonical shape + commit `agent-verdict.schema.json` before the Phase 5 stream-5 live check
 
 ### Recently closed
 

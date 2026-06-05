@@ -87,15 +87,26 @@ tmp/.orchestrator-state.json
 config/graph-registry.json
 
 # Ephemeral validation stamps — written by /validate, consumed by
-# pre_commit_cli_gate. 15-minute TTL, branch-scoped.
+# pre_commit_cli_gate. 15-minute TTL, branch-scoped. The .lock sidecars
+# are _os_safe portalocker artifacts and are equally ephemeral.
 .validation_stamp
 .frontend_validation_stamp
 .agent_validation_stamp
 .db_validation_stamp
 .api_validation_stamp
+.validation_stamp.lock
+.frontend_validation_stamp.lock
+.agent_validation_stamp.lock
+.db_validation_stamp.lock
+.api_validation_stamp.lock
 
 # Context-usage cache — written by statusline.py, read by context_budget.py
 .claude/.context_pct
+
+# Framework-memory tier — local plugin state (incidents, telemetry,
+# graph-history snapshots). Never committed; the canonical location is
+# ${CLAUDE_PLUGIN_DATA}/framework-memory, this covers the project-dir fallback.
+.claude/framework-memory/
 
 # Archived session state — produced by session_start.py after reinjection
 **/memory/session-state.md.injected
