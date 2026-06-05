@@ -1,4 +1,4 @@
-"""Phase 1 + Phase 2 + Phase 3 exit gate — 28-assertion self-test.
+"""Phase 1 + Phase 2 + Phase 3 + Phase 4 exit gate — 33-assertion self-test.
 
 Reproduces:
 
@@ -8,6 +8,8 @@ Reproduces:
   ``docs/phases/phase-2-hook-completion.md``.
 - Phase 3 exit gate (assertions 22-28) per
   ``docs/phases/phase-3-language-profiles-and-scanners.md``.
+- Phase 4 exit gate (assertions 29-33) per
+  ``docs/phases/phase-4-telemetry-and-memory.md``.
 
 Each check runs in an isolated ``temp_directory`` or invokes a
 hook module via ``uv run python -m hooks.<name>``; nothing mutates
@@ -30,13 +32,14 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import re
 import subprocess
 import sys
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -44,13 +47,15 @@ from typing import Any
 
 from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
+from hooks import _incident, _telemetry
 from hooks._hook_shared import (
     AGENT_VALIDATION_STEPS,
     CRITICAL_CONTEXT_PCT,
     PY_VALIDATION_STEPS,
     STAMP_TTL,
 )
-from hooks._os_safe import temp_directory
+from hooks._memory import framework_memory_dir
+from hooks._os_safe import safe_join, temp_directory
 from hooks._session_state_common import get_memory_dir
 
 _STAMP_VERSION: str = "1.0.0"
@@ -1164,6 +1169,180 @@ def _check_phase_3_analyst_report_schemas(real_root: Path) -> AssertionResult:
 
 
 # ---------------------------------------------------------------------------
+# Phase 4 assertions (29-33)
+# ---------------------------------------------------------------------------
+
+
+@contextlib.contextmanager
+def _patched_env(**overrides: str) -> Iterator[None]:
+    """Temporarily set environment variables, restoring prior values on exit.
+
+    The checks run sequentially in one process, so mutating ``os.environ``
+    is safe as long as it is undone — this manager saves each key's prior
+    value (or absence) and reinstates it in a ``finally``.
+    """
+    saved: dict[str, str | None] = {key: os.environ.get(key) for key in overrides}
+    os.environ.update(overrides)
+    try:
+        yield
+    finally:
+        for key, prior in saved.items():
+            if prior is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = prior
+
+
+def _check_phase_4_memory_paths(real_root: Path) -> AssertionResult:
+    """Assertion 29: ``_memory.framework_memory_dir`` roots under
+    ``$CLAUDE_PLUGIN_DATA`` and ``safe_join`` rejects traversal."""
+    with temp_directory(prefix="smoke-29-") as tmp:
+        plugin = tmp / "plugin"
+        expected = plugin.resolve() / "framework-memory"
+        with _patched_env(CLAUDE_PLUGIN_DATA=str(plugin)):
+            resolved = framework_memory_dir()
+        if resolved != expected:
+            return AssertionResult(29, "phase-4-memory-paths", False, f"{resolved} != {expected}")
+    try:
+        safe_join(real_root, "..", "..", "etc", "passwd")
+    except ValueError:
+        return AssertionResult(29, "phase-4-memory-paths", True)
+    return AssertionResult(
+        29, "phase-4-memory-paths", False, "safe_join accepted a traversal path"
+    )
+
+
+def _check_phase_4_framework_memory_init(real_root: Path) -> AssertionResult:
+    """Assertion 30: ``session_start_framework_memory`` creates the
+    incidents/telemetry/graph-history tree and a .gitignore."""
+    with temp_directory(prefix="smoke-30-") as tmp:
+        plugin = tmp / "plugin"
+        fm_root = plugin / "framework-memory"
+        incidents = fm_root / "incidents"
+        telemetry = fm_root / "telemetry"
+        graph_history = fm_root / "graph-history"
+        gitignore = fm_root / ".gitignore"
+        proc = _run_hook_module(
+            "session_start_framework_memory",
+            real_root,
+            stdin_payload={"hook_event_name": "SessionStart", "session_id": "smoke"},
+            env_overrides={
+                "CLAUDE_PLUGIN_DATA": str(plugin),
+                "CLAUDE_INCIDENTS_DIR": str(incidents),
+                "CLAUDE_TELEMETRY_DIR": str(telemetry),
+            },
+        )
+        if proc.returncode != 0:
+            return AssertionResult(
+                30, "phase-4-framework-memory-init", False, f"exit {proc.returncode}"
+            )
+        for subdir in (incidents, telemetry, graph_history):
+            if not subdir.is_dir():
+                return AssertionResult(
+                    30, "phase-4-framework-memory-init", False, f"missing dir: {subdir}"
+                )
+        if not gitignore.is_file():
+            return AssertionResult(
+                30, "phase-4-framework-memory-init", False, "missing .gitignore"
+            )
+        if "*" not in gitignore.read_text(encoding="utf-8"):
+            return AssertionResult(
+                30, "phase-4-framework-memory-init", False, ".gitignore does not exclude all"
+            )
+    return AssertionResult(30, "phase-4-framework-memory-init", True)
+
+
+def _check_phase_4_incident_schema(real_root: Path) -> AssertionResult:
+    """Assertion 31: a record produced by ``_incident.write_incident``
+    validates against schemas/contracts/incident.schema.json."""
+    schema_path = real_root / "schemas" / "contracts" / "incident.schema.json"
+    if not schema_path.is_file():
+        return AssertionResult(31, "phase-4-incident-schema", False, "schema missing")
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    with temp_directory(prefix="smoke-31-") as tmp:
+        incidents = tmp / "incidents"
+        with _patched_env(CLAUDE_INCIDENTS_DIR=str(incidents)):
+            _incident.write_incident("stop-failure", "smoke incident", severity="error")
+            files = list(incidents.rglob("INC-*.jsonl"))
+        if not files:
+            return AssertionResult(
+                31, "phase-4-incident-schema", False, "no incident file produced"
+            )
+        record = json.loads(files[0].read_text(encoding="utf-8").splitlines()[0])
+        errors = list(Draft202012Validator(schema).iter_errors(record))
+        if errors:
+            return AssertionResult(
+                31, "phase-4-incident-schema", False, f"record rejected: {errors[0].message[:120]}"
+            )
+    return AssertionResult(31, "phase-4-incident-schema", True)
+
+
+def _check_phase_4_telemetry_schema(real_root: Path) -> AssertionResult:
+    """Assertion 32: a record produced by ``_telemetry.emit`` validates
+    against schemas/contracts/telemetry-record.schema.json."""
+    schema_path = real_root / "schemas" / "contracts" / "telemetry-record.schema.json"
+    if not schema_path.is_file():
+        return AssertionResult(32, "phase-4-telemetry-schema", False, "schema missing")
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    with temp_directory(prefix="smoke-32-") as tmp:
+        telemetry = tmp / "telemetry"
+        with _patched_env(CLAUDE_TELEMETRY_DIR=str(telemetry)):
+            _telemetry.emit("hook-failure", {"tool": "Edit", "exit": 2})
+            files = list(telemetry.glob("*.jsonl"))
+        if not files:
+            return AssertionResult(
+                32, "phase-4-telemetry-schema", False, "no telemetry file produced"
+            )
+        record = json.loads(files[0].read_text(encoding="utf-8").splitlines()[0])
+        errors = list(Draft202012Validator(schema).iter_errors(record))
+        if errors:
+            return AssertionResult(
+                32,
+                "phase-4-telemetry-schema",
+                False,
+                f"record rejected: {errors[0].message[:120]}",
+            )
+    return AssertionResult(32, "phase-4-telemetry-schema", True)
+
+
+def _check_phase_4_quality_scorer(real_root: Path) -> AssertionResult:
+    """Assertion 33: closed-loop-quality-scorer is present (tier=write,
+    model=haiku) and quality-scores.schema.json self-validates and
+    accepts a minimal empty-tree example."""
+    relpath = "agents/closed-loop/closed-loop-quality-scorer.md"
+    agent_res = _check_agent_files_present(
+        real_root,
+        number=33,
+        name="phase-4-quality-scorer",
+        expected=[(relpath, "closed-loop-quality-scorer", "write")],
+    )
+    if not agent_res.passed:
+        return agent_res
+    fm = _parse_frontmatter((real_root / relpath).read_text(encoding="utf-8")) or {}
+    if fm.get("model") != "haiku":
+        return AssertionResult(
+            33, "phase-4-quality-scorer", False, f"model={fm.get('model')!r} != 'haiku'"
+        )
+    minimal: dict[str, Any] = {
+        "schema_version": "1",
+        "generated_at": "2026-06-05T00:00:00Z",
+        "summary": {
+            "total_agents": 0,
+            "total_runs": 0,
+            "window_start": None,
+            "window_end": None,
+        },
+        "agents": {},
+    }
+    return _validate_schema_with_examples(
+        real_root,
+        number=33,
+        name="phase-4-quality-scorer",
+        schema_examples=[("quality-scores.schema.json", minimal)],
+    )
+
+
+# ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
 
@@ -1197,6 +1376,11 @@ ASSERTIONS: list[Callable[[Path], AssertionResult]] = [
     _check_phase_3_codebase_report_schemas,
     _check_phase_3_db_api_report_schemas,
     _check_phase_3_analyst_report_schemas,
+    _check_phase_4_memory_paths,
+    _check_phase_4_framework_memory_init,
+    _check_phase_4_incident_schema,
+    _check_phase_4_telemetry_schema,
+    _check_phase_4_quality_scorer,
 ]
 
 
@@ -1226,7 +1410,7 @@ def main(argv: list[str] | None = None) -> int:
 
     passed = sum(1 for r in results if r.passed)
     outcome = "OK" if passed == total else "FAILED"
-    print(f"[bootstrap-smoke] {passed}/{total} passed - Phase 1+2+3 exit gate {outcome}")
+    print(f"[bootstrap-smoke] {passed}/{total} passed - Phase 1+2+3+4 exit gate {outcome}")
     return 0 if passed == total else 1
 
 
