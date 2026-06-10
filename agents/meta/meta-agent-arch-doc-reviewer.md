@@ -47,6 +47,7 @@ Missing sections are `body-section-missing` errors. Reordering is tolerated; abs
 ### Naming / category consistency
 
 - The parent directory under `agents/` should match the `name` prefix: `meta-*.md` under `agents/meta/`; `validation-*.md` under `agents/validation/`; `discover-*.md` under `agents/discover/`; `closed-loop-*.md` under `agents/closed-loop/`; and so on. A mismatch is `category-mismatch`.
+- **Canonical prefix→directory exceptions.** Several PSF prefixes map to a longer canonical directory name per `agents/CLAUDE.md`; these are correct, not mismatches: `doc-*` → `document/`, `db-*` → `database/`, `py-*` → `python/`, `fe-*` → `frontend/`, `api-*` → `interface/`, `pattern-*` → `patterns/`, `antipattern-*` → `antipatterns/`. Only emit `category-mismatch` when the directory matches neither the prefix nor its canonical exception.
 
 ## Procedure
 

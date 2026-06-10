@@ -63,11 +63,11 @@ Each domain has a dedicated agent with specific expertise:
 | `error` | `@error-standards` | Try/catch patterns, error types, stack traces |
 | `type` | `@validation-type-safety-reviewer` | JSDoc types, TypeScript, mypy |
 | `lint` | `@validation-lint-reviewer` | ESLint, ruff, auto-fix, rule config |
-| `test` | `@test-standards` | Unit/integration tests, coverage, mocking |
+| `test` | `@testing-strategy-reviewer` | Unit/integration tests, coverage, mocking |
 | `validation` | `@validation-standards-reviewer` | Input validation, sanitization, security |
 | `git` | `@git-standards` | Conventional commits, branch naming |
 | `housekeeping` | `@housekeeping-standards` | Project layout, temp dirs, clutter |
-| `naming` | `@naming-standards` | File/function naming conventions |
+| `naming` | `@meta-naming-standards-reviewer` | File/function naming conventions |
 
 ## Handoffs
 
@@ -75,7 +75,7 @@ When one agent's work requires another agent (e.g., new error handling needs log
 
 ```
 @error-standards (build) -> @logging-standards: Add logging to catch blocks
-@logging-standards (build) -> @test-standards: Add test coverage
+@logging-standards (build) -> @testing-strategy-reviewer: Add test coverage
 ```
 
 ## CLI Commands
