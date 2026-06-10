@@ -23,7 +23,7 @@ Never skip steps. The most common failures come from implementing without unders
 | Validate changes | `/validate` | - |
 | Code review | `/review` | `@validation-code-reviewer` |
 | Write tests | - | `@test-writer` |
-| Update docs | - | `@doc-writer` |
+| Update docs | - | `@doc-technical-writer` |
 
 ## Workflow by Task Type
 
