@@ -6,7 +6,7 @@ Execute a complete bug fix workflow with investigation, implementation, and vali
 
 ### Phase 1: Investigation
 ```
-Delegate to @investigator if complex, otherwise:
+Delegate to @operate-root-cause-analyst if complex, otherwise:
 1. Reproduce the issue
 2. Read relevant code, logs, config
 3. Identify root cause (not just symptoms)

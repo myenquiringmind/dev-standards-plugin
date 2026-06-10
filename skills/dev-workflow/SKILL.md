@@ -19,7 +19,7 @@ Never skip steps. The most common failures come from implementing without unders
 | Task | Command | Subagent |
 |------|---------|----------|
 | Create plan | `/plan` | - |
-| Fix a bug | `/fix` | `@investigator` |
+| Fix a bug | `/fix` | `@operate-root-cause-analyst` |
 | Validate changes | `/validate` | - |
 | Code review | `/review` | `@validation-code-reviewer` |
 | Write tests | - | `@test-writer` |
@@ -28,7 +28,7 @@ Never skip steps. The most common failures come from implementing without unders
 ## Workflow by Task Type
 
 ### Bug Fix
-1. Delegate to `@investigator` for root cause analysis
+1. Delegate to `@operate-root-cause-analyst` for root cause analysis
 2. `/plan` the fix with TLDR
 3. Implement on feature branch
 4. `/validate` all changes

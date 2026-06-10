@@ -59,14 +59,14 @@ Each domain has a dedicated agent with specific expertise:
 
 | Domain | Agent | Expertise |
 |--------|-------|-----------|
-| `logging` | `@logging-standards` | Structured logging, log levels, debug mode |
-| `error` | `@error-standards` | Try/catch patterns, error types, stack traces |
+| `logging` | `@operate-logging-reviewer` | Structured logging, log levels, debug mode |
+| `error` | `@operate-error-handling-reviewer` | Try/catch patterns, error types, stack traces |
 | `type` | `@validation-type-safety-reviewer` | JSDoc types, TypeScript, mypy |
 | `lint` | `@validation-lint-reviewer` | ESLint, ruff, auto-fix, rule config |
 | `test` | `@testing-strategy-reviewer` | Unit/integration tests, coverage, mocking |
 | `validation` | `@validation-standards-reviewer` | Input validation, sanitization, security |
-| `git` | `@git-standards` | Conventional commits, branch naming |
-| `housekeeping` | `@housekeeping-standards` | Project layout, temp dirs, clutter |
+| `git` | `@operate-git-workflow-reviewer` | Conventional commits, branch naming |
+| `housekeeping` | `@maintain-housekeeping-reviewer` | Project layout, temp dirs, clutter |
 | `naming` | `@meta-naming-standards-reviewer` | File/function naming conventions |
 
 ## Handoffs
@@ -74,8 +74,8 @@ Each domain has a dedicated agent with specific expertise:
 When one agent's work requires another agent (e.g., new error handling needs logging), handoffs are tracked:
 
 ```
-@error-standards (build) -> @logging-standards: Add logging to catch blocks
-@logging-standards (build) -> @testing-strategy-reviewer: Add test coverage
+@operate-error-handling-reviewer (build) -> @operate-logging-reviewer: Add logging to catch blocks
+@operate-logging-reviewer (build) -> @testing-strategy-reviewer: Add test coverage
 ```
 
 ## CLI Commands
@@ -136,12 +136,12 @@ User: /orchestrate domain=git
 
 Claude: Initializing orchestrator for domain: git
         Phase: design
-        Loading @git-standards context...
+        Loading @operate-git-workflow-reviewer context...
 
         [Executes design phase, proposes changes]
 
         ## Checkpoint: design Complete
-        **Agent**: @git-standards
+        **Agent**: @operate-git-workflow-reviewer
         **Phase**: design
         **Status**: Awaiting user approval
 
