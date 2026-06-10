@@ -44,15 +44,15 @@ class TestFrontmatterParser:
 
 
 class TestRealTreeSmokeRun:
-    """Single integration test: running against the real repo passes 33/33
-    (Phase 1+2+3+4 exit gate)."""
+    """Single integration test: running against the real repo passes 37/37
+    (Phase 1-5 exit gate)."""
 
-    def test_real_tree_passes_all_33(self) -> None:
+    def test_real_tree_passes_all_37(self) -> None:
         project_root = Path(__file__).resolve().parents[2]
         results = bs.run_all(project_root)
         failed = [r for r in results if not r.passed]
-        assert len(results) == 33
-        assert not failed, "\n".join(f"  {r.number}/33 {r.name}: {r.detail}" for r in failed)
+        assert len(results) == 37
+        assert not failed, "\n".join(f"  {r.number}/37 {r.name}: {r.detail}" for r in failed)
 
 
 class TestMainCLIShape:

@@ -21,6 +21,7 @@ from hooks import _incident, _telemetry
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _INCIDENT_SCHEMA_PATH = _REPO_ROOT / "schemas" / "contracts" / "incident.schema.json"
 _TELEMETRY_SCHEMA_PATH = _REPO_ROOT / "schemas" / "contracts" / "telemetry-record.schema.json"
+_AGENT_VERDICT_SCHEMA_PATH = _REPO_ROOT / "schemas" / "contracts" / "agent-verdict.schema.json"
 
 
 def _load_schema(path: Path) -> dict[str, object]:
@@ -57,6 +58,10 @@ class TestSchemasSelfValidate:
 
     def test_telemetry_schema_meta_validates(self) -> None:
         schema = _load_schema(_TELEMETRY_SCHEMA_PATH)
+        Draft202012Validator.check_schema(schema)
+
+    def test_agent_verdict_schema_meta_validates(self) -> None:
+        schema = _load_schema(_AGENT_VERDICT_SCHEMA_PATH)
         Draft202012Validator.check_schema(schema)
 
 
@@ -175,6 +180,103 @@ class TestTelemetryRoundTrip:
         schema = _load_schema(_TELEMETRY_SCHEMA_PATH)
         errors = list(Draft202012Validator(schema).iter_errors(records[0]))
         assert not errors
+
+
+class TestAgentVerdictSchema:
+    """The canonical AgentVerdict contract (TR-0005) accepts well-formed
+    verdicts from the retrofit agents and rejects malformed ones."""
+
+    def test_clean_pass_verdict_validates(self) -> None:
+        schema = _load_schema(_AGENT_VERDICT_SCHEMA_PATH)
+        verdict = {
+            "agent": "operate-logging-reviewer",
+            "status": "pass",
+            "confidence": 0.95,
+            "findings": [],
+        }
+        errors = list(Draft202012Validator(schema).iter_errors(verdict))
+        assert not errors, f"clean verdict rejected: {[e.message for e in errors]}"
+
+    def test_fail_verdict_with_findings_validates(self) -> None:
+        schema = _load_schema(_AGENT_VERDICT_SCHEMA_PATH)
+        verdict = {
+            "agent": "operate-error-handling-reviewer",
+            "status": "fail",
+            "confidence": 0.8,
+            "findings": [
+                {
+                    "path": "hooks/foo.py:42",
+                    "severity": "major",
+                    "detail": "Silent except swallows the error",
+                    "fix": "Log with context then re-raise a typed error",
+                },
+                {
+                    "path": "hooks/bar.py:10",
+                    "severity": "minor",
+                    "detail": "Generic Exception where a typed error exists",
+                    "fixed": False,
+                    "rule": "no-generic-error",
+                },
+            ],
+        }
+        errors = list(Draft202012Validator(schema).iter_errors(verdict))
+        assert not errors, f"verdict rejected: {[e.message for e in errors]}"
+
+    def test_rejects_missing_confidence(self) -> None:
+        schema = _load_schema(_AGENT_VERDICT_SCHEMA_PATH)
+        bad = {"agent": "doc-technical-writer", "status": "pass", "findings": []}
+        assert list(Draft202012Validator(schema).iter_errors(bad))
+
+    def test_rejects_confidence_out_of_range(self) -> None:
+        schema = _load_schema(_AGENT_VERDICT_SCHEMA_PATH)
+        bad = {
+            "agent": "doc-technical-writer",
+            "status": "pass",
+            "confidence": 1.5,
+            "findings": [],
+        }
+        assert list(Draft202012Validator(schema).iter_errors(bad))
+
+    def test_rejects_unknown_status(self) -> None:
+        schema = _load_schema(_AGENT_VERDICT_SCHEMA_PATH)
+        bad = {
+            "agent": "testing-strategy-reviewer",
+            "status": "maybe",
+            "confidence": 0.5,
+            "findings": [],
+        }
+        assert list(Draft202012Validator(schema).iter_errors(bad))
+
+    def test_rejects_bad_agent_prefix(self) -> None:
+        schema = _load_schema(_AGENT_VERDICT_SCHEMA_PATH)
+        bad = {
+            "agent": "notaprefix-reviewer",
+            "status": "pass",
+            "confidence": 0.5,
+            "findings": [],
+        }
+        assert list(Draft202012Validator(schema).iter_errors(bad))
+
+    def test_rejects_finding_bad_severity(self) -> None:
+        schema = _load_schema(_AGENT_VERDICT_SCHEMA_PATH)
+        bad = {
+            "agent": "meta-naming-standards-reviewer",
+            "status": "fail",
+            "confidence": 0.6,
+            "findings": [{"path": "x.py:1", "severity": "blocker", "detail": "x"}],
+        }
+        assert list(Draft202012Validator(schema).iter_errors(bad))
+
+    def test_rejects_additional_top_level_property(self) -> None:
+        schema = _load_schema(_AGENT_VERDICT_SCHEMA_PATH)
+        bad = {
+            "agent": "operate-logging-reviewer",
+            "status": "pass",
+            "confidence": 0.9,
+            "findings": [],
+            "errors": [],
+        }
+        assert list(Draft202012Validator(schema).iter_errors(bad))
 
 
 class TestNegativeExamples:

@@ -1,11 +1,12 @@
-"""Phase 2 live-integration smoke — exercise assertions 1, 2, 10 with real model calls.
+"""Live-integration smoke — exercise assertions 1, 2, 10, 34 with real model calls.
 
-Spec'd in ``docs/phases/phase-2-hook-completion.md`` § exit gate.
-``scripts/bootstrap_smoke.py`` covers assertions 1, 2, and 10
-*structurally* (file presence, frontmatter shape, schema membership).
-This script exercises the same agent contracts *live*: each check
-makes a real Anthropic Messages API call using the agent's own
-prompt body and asserts the response shape.
+Spec'd in ``docs/phases/phase-2-hook-completion.md`` § exit gate, extended
+by ``docs/phases/phase-5-core-agent-refactor.md`` (the retrofit-verdict
+check). ``scripts/bootstrap_smoke.py`` covers these contracts *structurally*
+(file presence, frontmatter shape, schema membership). This script exercises
+them *live*: each check makes a real Anthropic Messages API call using the
+agent's own prompt body and asserts the response shape — including, for the
+Phase 5 check, validation against the committed AgentVerdict schema.
 
 Skipped silently (exit 0 with a status line) when:
 
@@ -193,6 +194,58 @@ def _check_transcript_extractor_live(client: Any, root: Path) -> CheckResult:
     return CheckResult(10, "transcript-extractor-live", True)
 
 
+def _check_retrofit_verdict_live(client: Any, root: Path) -> CheckResult:
+    """Live equivalent of the Phase 5 retrofit-agent contract.
+
+    Loads ``validation-standards-reviewer`` (a verdict-only retrofit agent),
+    presents a synthetic diff with an obvious unvalidated-input issue, and
+    asks for its AgentVerdict JSON. Validates the parsed output against the
+    committed ``schemas/contracts/agent-verdict.schema.json`` — proving a
+    retrofit agent's prompt drives a real model to the canonical shape.
+    """
+    agent_path = root / "agents" / "validation" / "validation-standards-reviewer.md"
+    schema_path = root / "schemas" / "contracts" / "agent-verdict.schema.json"
+    if not agent_path.is_file():
+        return CheckResult(34, "retrofit-verdict-live", False, f"missing: {agent_path}")
+    if not schema_path.is_file():
+        return CheckResult(34, "retrofit-verdict-live", False, f"missing: {schema_path}")
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    system = _strip_frontmatter(agent_path.read_text(encoding="utf-8"))
+    user = (
+        "STAGED DIFF:\n"
+        "  + def handler(req):\n"
+        "  +     name = req.args['name']\n"
+        "  +     db.execute('SELECT * FROM users WHERE name = ' + name)\n\n"
+        "Review this diff for input-validation and injection discipline. "
+        "Output ONLY the AgentVerdict JSON object, no prose."
+    )
+    try:
+        response = _call_model(client, system=system, user=user)
+    except Exception as exc:
+        return CheckResult(34, "retrofit-verdict-live", False, f"API error: {exc}")
+    cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", response.strip(), flags=re.MULTILINE)
+    try:
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError as exc:
+        return CheckResult(
+            34, "retrofit-verdict-live", False, f"output not JSON: {exc}; got: {cleaned[:120]}"
+        )
+    errors = list(Draft202012Validator(schema).iter_errors(parsed))
+    if errors:
+        return CheckResult(
+            34, "retrofit-verdict-live", False, f"schema violation: {errors[0].message}"
+        )
+    # The diff is a clear SQL-injection; expect a failing verdict.
+    if parsed.get("status") != "fail":
+        return CheckResult(
+            34,
+            "retrofit-verdict-live",
+            False,
+            f"injection accepted (status={parsed.get('status')!r})",
+        )
+    return CheckResult(34, "retrofit-verdict-live", True)
+
+
 def _skip(reason: str) -> int:
     print(f"[live-integration-smoke] skipped - {reason}")
     return 0
@@ -219,6 +272,7 @@ def main(argv: list[str] | None = None) -> int:
         _check_validate_command_live(client, root),
         _check_objective_verifier_live(client, root),
         _check_transcript_extractor_live(client, root),
+        _check_retrofit_verdict_live(client, root),
     ]
     total = len(checks)
     for r in checks:

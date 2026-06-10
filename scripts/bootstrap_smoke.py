@@ -1,4 +1,4 @@
-"""Phase 1 + Phase 2 + Phase 3 + Phase 4 exit gate — 33-assertion self-test.
+"""Phase 1-5 exit gate — 37-assertion self-test.
 
 Reproduces:
 
@@ -10,6 +10,8 @@ Reproduces:
   ``docs/phases/phase-3-language-profiles-and-scanners.md``.
 - Phase 4 exit gate (assertions 29-33) per
   ``docs/phases/phase-4-telemetry-and-memory.md``.
+- Phase 5 exit gate (assertions 34-37) per
+  ``docs/phases/phase-5-core-agent-refactor.md``.
 
 Each check runs in an isolated ``temp_directory`` or invokes a
 hook module via ``uv run python -m hooks.<name>``; nothing mutates
@@ -1343,6 +1345,155 @@ def _check_phase_4_quality_scorer(real_root: Path) -> AssertionResult:
 
 
 # ---------------------------------------------------------------------------
+# Phase 5 assertions (34-37)
+# ---------------------------------------------------------------------------
+
+
+_PHASE_5_RETROFIT_AGENTS: list[tuple[str, str]] = [
+    ("agents/validation/validation-code-reviewer.md", "validation-code-reviewer"),
+    ("agents/validation/validation-standards-reviewer.md", "validation-standards-reviewer"),
+    ("agents/validation/validation-lint-reviewer.md", "validation-lint-reviewer"),
+    ("agents/validation/validation-type-safety-reviewer.md", "validation-type-safety-reviewer"),
+    ("agents/document/doc-technical-writer.md", "doc-technical-writer"),
+    ("agents/meta/meta-naming-standards-reviewer.md", "meta-naming-standards-reviewer"),
+    ("agents/meta/meta-standards-orchestrator.md", "meta-standards-orchestrator"),
+    ("agents/testing/testing-strategy-reviewer.md", "testing-strategy-reviewer"),
+    ("agents/operate/operate-root-cause-analyst.md", "operate-root-cause-analyst"),
+    ("agents/operate/operate-logging-reviewer.md", "operate-logging-reviewer"),
+    ("agents/operate/operate-error-handling-reviewer.md", "operate-error-handling-reviewer"),
+    ("agents/operate/operate-git-workflow-reviewer.md", "operate-git-workflow-reviewer"),
+    ("agents/maintain/maintain-housekeeping-reviewer.md", "maintain-housekeeping-reviewer"),
+]
+
+
+def _check_phase_5_flat_root_empty(real_root: Path) -> AssertionResult:
+    """Assertion 34: no v1 flat-root agent file remains under ``agents/``.
+
+    Every agent now lives in a category subdir; the only ``agents/*.md`` is
+    ``CLAUDE.md``. A stray flat-root file means a retrofit was missed.
+    """
+    stray = sorted(p.name for p in (real_root / "agents").glob("*.md") if p.name != "CLAUDE.md")
+    if stray:
+        return AssertionResult(
+            34,
+            "phase-5-flat-root-empty",
+            False,
+            f"{len(stray)} stray flat-root agents",
+            notes=stray,
+        )
+    return AssertionResult(34, "phase-5-flat-root-empty", True)
+
+
+def _check_phase_5_retrofit_frontmatter(real_root: Path) -> AssertionResult:
+    """Assertion 35: all 13 retrofit agents have schema-valid frontmatter with a
+    declared tier consistent with their tools (the schema's allOf tier rules pass)."""
+    schema = json.loads(
+        (real_root / "schemas" / "agent-frontmatter.schema.json").read_text(encoding="utf-8")
+    )
+    valid_tiers = {"read", "reason", "write", "read-reason-write"}
+    for relpath, expected_name in _PHASE_5_RETROFIT_AGENTS:
+        path = real_root / relpath
+        if not path.is_file():
+            return AssertionResult(
+                35, "phase-5-retrofit-frontmatter", False, f"missing: {relpath}"
+            )
+        fm = _parse_frontmatter(path.read_text(encoding="utf-8"))
+        if not fm:
+            return AssertionResult(
+                35, "phase-5-retrofit-frontmatter", False, f"{relpath}: no frontmatter"
+            )
+        if fm.get("name") != expected_name:
+            return AssertionResult(
+                35,
+                "phase-5-retrofit-frontmatter",
+                False,
+                f"{relpath}: name={fm.get('name')!r} != {expected_name!r}",
+            )
+        if fm.get("tier") not in valid_tiers:
+            return AssertionResult(
+                35,
+                "phase-5-retrofit-frontmatter",
+                False,
+                f"{relpath}: tier={fm.get('tier')!r} invalid",
+            )
+        errors = list(Draft202012Validator(schema).iter_errors(fm))
+        if errors:
+            return AssertionResult(
+                35,
+                "phase-5-retrofit-frontmatter",
+                False,
+                f"{relpath}: frontmatter invalid: {errors[0].message[:120]}",
+            )
+    return AssertionResult(
+        35, "phase-5-retrofit-frontmatter", True, f"{len(_PHASE_5_RETROFIT_AGENTS)} agents"
+    )
+
+
+def _check_phase_5_registry_discovers_retrofits(real_root: Path) -> AssertionResult:
+    """Assertion 36: ``build_graph_registry`` discovers all 13 retrofit agents.
+
+    Builds the registry to a throwaway path and asserts every retrofit name
+    appears as a node id — proving the registry grew by the full cluster and
+    matches disk.
+    """
+    with temp_directory(prefix="smoke-36-") as tmp:
+        out = tmp / "registry.json"
+        result = subprocess.run(
+            ["uv", "run", "python", "-m", "scripts.build_graph_registry", "--output", str(out)],
+            cwd=str(real_root),
+            capture_output=True,
+            text=True,
+            timeout=_SUBPROCESS_TIMEOUT,
+            check=False,
+        )
+        if result.returncode != 0:
+            return AssertionResult(
+                36,
+                "phase-5-registry-discovers-retrofits",
+                False,
+                f"build failed: {result.stderr[:200]}",
+            )
+        registry = json.loads(out.read_text(encoding="utf-8"))
+        node_ids = {node["id"] for node in registry.get("nodes", [])}
+        missing = [name for _, name in _PHASE_5_RETROFIT_AGENTS if name not in node_ids]
+        if missing:
+            return AssertionResult(
+                36,
+                "phase-5-registry-discovers-retrofits",
+                False,
+                f"{len(missing)} retrofit agents not in registry",
+                notes=missing,
+            )
+    return AssertionResult(
+        36, "phase-5-registry-discovers-retrofits", True, f"{len(_PHASE_5_RETROFIT_AGENTS)} nodes"
+    )
+
+
+def _check_phase_5_retrofit_body_structure(real_root: Path) -> AssertionResult:
+    """Assertion 37: each retrofit body has the arch-doc-reviewer structure —
+    an ``# <name>`` H1 plus ``## Procedure``, ``## Output``, ``## Do not``."""
+    required_sections = ("## Procedure", "## Output", "## Do not")
+    for relpath, expected_name in _PHASE_5_RETROFIT_AGENTS:
+        text = (real_root / relpath).read_text(encoding="utf-8")
+        body = re.sub(r"^---\n.*?\n---\n", "", text, count=1, flags=re.DOTALL)
+        if f"# {expected_name}" not in body:
+            return AssertionResult(
+                37,
+                "phase-5-retrofit-body-structure",
+                False,
+                f"{relpath}: missing H1 '# {expected_name}'",
+            )
+        missing = [s for s in required_sections if s not in body]
+        if missing:
+            return AssertionResult(
+                37, "phase-5-retrofit-body-structure", False, f"{relpath}: missing {missing}"
+            )
+    return AssertionResult(
+        37, "phase-5-retrofit-body-structure", True, f"{len(_PHASE_5_RETROFIT_AGENTS)} bodies"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
 
@@ -1381,6 +1532,10 @@ ASSERTIONS: list[Callable[[Path], AssertionResult]] = [
     _check_phase_4_incident_schema,
     _check_phase_4_telemetry_schema,
     _check_phase_4_quality_scorer,
+    _check_phase_5_flat_root_empty,
+    _check_phase_5_retrofit_frontmatter,
+    _check_phase_5_registry_discovers_retrofits,
+    _check_phase_5_retrofit_body_structure,
 ]
 
 
@@ -1410,7 +1565,7 @@ def main(argv: list[str] | None = None) -> int:
 
     passed = sum(1 for r in results if r.passed)
     outcome = "OK" if passed == total else "FAILED"
-    print(f"[bootstrap-smoke] {passed}/{total} passed - Phase 1+2+3+4 exit gate {outcome}")
+    print(f"[bootstrap-smoke] {passed}/{total} passed - Phase 1+2+3+4+5 exit gate {outcome}")
     return 0 if passed == total else 1
 
 
