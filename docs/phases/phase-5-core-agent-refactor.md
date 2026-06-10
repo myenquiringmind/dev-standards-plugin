@@ -12,7 +12,7 @@ These 13 do **not** map 1:1 to the v2 catalog — their concerns decompose acros
 
 1. **Frontmatter** matching `schemas/agent-frontmatter.schema.json`: `name` (PSF-prefixed), `description`, `tools`, `model`, `memory`, `maxTurns`, `tier`, `pack`, `scope`.
 2. **A declared `tier`** consistent with its tools (read/reason forbid Edit/Write). Reviewers are `tier: write` (verdicts are structured writes); analysts/coordinators are `tier: reason`.
-3. **AgentVerdict output** — the body declares the `{ok, reason, confidence, evidence}` shape (per the planning session's `AgentVerdict` contract). `confidence` is the new field; below-threshold verdicts escalate.
+3. **AgentVerdict output** — the body declares the `{agent, status, confidence, findings}` shape, pinned by `schemas/contracts/agent-verdict.schema.json` (committed in stream 5, resolving TR-0005). `confidence` is the new field; below-threshold verdicts escalate. `status` is preserved from the existing verdict family so the stamp gate is unaffected; `findings` generalises the older `errors`/`evidence` arrays.
 4. **Body structure** the arch-doc-reviewer enforces: H1, `## Procedure`, `## Output`, `## Do not`.
 5. **Relocation** from `agents/<name>.md` into `agents/<category>/<name>.md`.
 6. **A successor annotation** — a one-line note naming the v2 agent(s) that will supersede it and the phase they land.
@@ -58,7 +58,7 @@ Each agent lands as its own small PR per the established cadence; the streams gr
 - **`build_graph_registry` discovers all 13** — node count grows by 13 and `--check` passes (registry matches disk).
 - **Each retrofitted body has the arch-doc-reviewer structure** — H1 + `## Procedure` + `## Output` + `## Do not`, checked structurally.
 
-`scripts/live_integration_smoke.py` gains **one live verdict check**: one retrofitted agent is invoked with a real model call and must return a JSON object matching the AgentVerdict shape (`ok: bool`, `reason: str`, `confidence: float` in `[0,1]`, `evidence: list`). It uses the existing skip-when-no-`ANTHROPIC_API_KEY` path, so unkeyed CI is unaffected.
+`scripts/live_integration_smoke.py` gains **one live verdict check**: one retrofitted agent (`validation-standards-reviewer`) is invoked with a real model call and its JSON output is validated against the committed `schemas/contracts/agent-verdict.schema.json` (`{agent, status, confidence, findings}`). It uses the existing skip-when-no-`ANTHROPIC_API_KEY` path, so unkeyed CI is unaffected.
 
 Full-suite targets: pytest 100% green; `bootstrap_smoke` ~37/37; ruff / mypy-strict clean.
 
@@ -66,7 +66,7 @@ Full-suite targets: pytest 100% green; `bootstrap_smoke` ~37/37; ruff / mypy-str
 
 - **Building the Phase 6–10 successor agents** (stack, testing, doc, pattern populations) — each lands in its own phase. Phase 5 only marks the interim agents with their successor.
 - **Retiring any legacy agent** — retrofit-in-place; deletion happens when a successor ships, not now.
-- **A formal `schemas/contracts/agent-verdict.schema.json`** — the verdict shape is asserted structurally (body declaration) and live (inline shape check). A committed contract schema is deferred to whichever phase first needs cross-tool verdict consumption.
+- ~~**A formal `schemas/contracts/agent-verdict.schema.json`**~~ — *delivered in stream 5* (resolving TR-0005). The verdict shape is now pinned by a committed contract schema and the live check validates against it. The two Phase 1 scope-verifiers (`validation-objective-verifier`, `validation-completion-verifier`) keep their richer `{errors, classifications}` variant that feeds the stamp gate — out of this schema's scope by design.
 - **The `meta-conflict-resolver` / `meta-sycophancy-detector`** (#123/#124) — Phase 5 retrofits existing agents only; new meta-agents are later work.
 
 ## Phase 5 → Phase 6 handover

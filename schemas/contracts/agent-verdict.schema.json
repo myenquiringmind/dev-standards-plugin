@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-standards-plugin/schemas/contracts/agent-verdict.schema.json",
+  "title": "Agent Verdict",
+  "description": "Canonical AgentVerdict shape returned by the framework's verdict-emitting agents — the 13 Phase 5 retrofit reviewers/analysts and every reviewer/analyst that follows them. Resolves TR-0005 by pinning {agent, status, confidence, findings}: `status` is preserved from the original {agent, status, ...} family so the stamp gate is unaffected, `confidence` is the planning-session AgentVerdict's required addition, and `findings` generalises the older `errors`/`evidence` arrays. NOTE: the two Phase 1 scope-verifiers (validation-objective-verifier, validation-completion-verifier) emit a richer {agent, status, errors, classifications} variant that feeds /validate's stamp flow directly; that variant predates this contract and is deliberately out of this schema's scope (see TR-0005).",
+  "type": "object",
+  "required": ["agent", "status", "confidence", "findings"],
+  "additionalProperties": false,
+  "properties": {
+    "agent": {
+      "type": "string",
+      "pattern": "^(py|fe|db|api|pattern|antipattern|design|discover|research|doc|meta|validation|refactor|operate|maintain|deploy|security|testing|interop|bg|codebase|closed-loop)-[a-z0-9][a-z0-9-]*$",
+      "description": "The emitting agent's name — must match the agent-frontmatter name pattern (PSF scope prefix). Ties a verdict back to a registered agent node."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["pass", "fail"],
+      "description": "Overall verdict. `pass` = no blocking finding (or, for analysts, a confident conclusion); `fail` = at least one blocking finding, or an inconclusive analysis. The stamp gate keys on this field."
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "The agent's confidence in its verdict, in [0,1]. Below-threshold verdicts (convention: < 0.7) escalate to human review rather than asserting the result."
+    },
+    "findings": {
+      "type": "array",
+      "description": "Zero or more findings. An empty array with `status: pass` is the clean verdict. Each finding localises an issue and, for reviewers, suggests a fix the human applies.",
+      "items": {
+        "type": "object",
+        "required": ["path", "severity", "detail"],
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Where the finding lives — `file:line`, or a logical locus (a domain name, `commit-msg`, `.gitignore`) for agents that do not review file content."
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "major", "minor"],
+            "description": "Finding severity. A `critical` or `major` finding drives `status: fail`; `minor` findings are advisory."
+          },
+          "detail": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Human-readable description of the issue."
+          },
+          "fix": {
+            "type": "string",
+            "description": "Suggested remediation. For verdict-only reviewers this is advisory (the human applies it); for auto-fixers it records what was applied."
+          },
+          "fixed": {
+            "type": "boolean",
+            "description": "True when an auto-fixer (worktree-isolated) already applied the fix; the verdict then records what the worktree contains."
+          },
+          "rule": {
+            "type": "string",
+            "description": "Originating rule identifier, when the finding came from a tool (a linter rule id, etc.)."
+          }
+        }
+      }
+    }
+  }
+}
