@@ -78,7 +78,7 @@ Each new/upgraded command passes `meta-command-composition-reviewer` (one respon
 ## New hooks
 
 - `run_cli_checks.py` — runs the 4 parallel per-language CLI checks (ruff/format/mypy/pytest, or eslint/tsc/vitest) and feeds `stamp_validation.py`. Today only `pre_commit_cli_gate.py` (the consumer) exists.
-- `post_scaffold_red_gate.py` (PostToolUse) — asserts scaffolded tests are RED (FAIL, not ERROR) before `/tdd` proceeds.
+- `scaffold_red_gate.py` (CLI utility invoked by `/scaffold`) — asserts scaffolded tests are RED (all FAIL, none ERROR, none PASS) before `/tdd` proceeds.
 
 Each hook ships with `hooks/tests/test_<name>.py` per `.claude/rules/hook-development.md`.
 
@@ -89,7 +89,7 @@ Phase 6 begins superseding the interim cross-cutting agents marked in Phase 5. R
 ## Branches (parallel work, streams)
 
 1. `feat/phase-6-spec` — this document.
-2. `feat/phase-6-develop-commands` — `/scaffold`, `/tdd`, `/debug` + `run_cli_checks.py`, `post_scaffold_red_gate.py`.
+2. `feat/phase-6-develop-commands` — `/scaffold`, `/tdd`, `/debug` + `run_cli_checks.py`, `scaffold_red_gate.py`.
 3. `feat/phase-6-python-stack` — the 9 `py-*` agents → `agents/python/`.
 4. `feat/phase-6-frontend-stack` — the 7 `fe-*` agents → `agents/frontend/`.
 5. `feat/phase-6-interface-database` — 3 `api-*` reviewers + 3 `db-*` reviewers.
