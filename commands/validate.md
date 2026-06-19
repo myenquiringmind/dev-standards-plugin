@@ -5,11 +5,14 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Agent
 argument-hint: [optional gate: code | frontend | agent | db | api | all]
 description: Run CLI checks, invoke blocking validation agents, write stamps for every applicable gate. The keystone producer for pre_commit_cli_gate.
 phase: validate
+fast-command: true
 ---
 
 # /validate — run validation gates and stamp
 
 Execute the validation protocol. Produces one or more stamp files that `pre_commit_cli_gate.py` consumes on `git commit`. A stamp is branch-specific and lives 15 minutes.
+
+`/validate` declares `fast-command: true`: it is fixed-cost (run the gate's steps, stamp, report) with no fan-out or full-project walk, so it takes the sanctioned rule-3 exemption from `meta-session-planner` (see `commands/CLAUDE.md`). The agents it invokes do their own work; `/validate` itself does not need budget sizing.
 
 The canonical step tuples for each gate are the single source of truth in `hooks/_hook_shared.py` — `PY_VALIDATION_STEPS`, `FE_VALIDATION_STEPS`, `AGENT_VALIDATION_STEPS`. Do not duplicate them here; read them at runtime.
 

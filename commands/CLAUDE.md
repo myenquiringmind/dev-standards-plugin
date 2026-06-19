@@ -16,6 +16,7 @@ context: fork | none        # fork = run in an isolated subagent context (domina
 model: opus | sonnet | haiku # resource allocation (opus for judgment, haiku for summaries)
 allowed-tools: <list>       # tools the command can invoke
 argument-hint: <string>     # autocomplete hint shown in the CC UI
+fast-command: true          # optional — rule-3 planner exemption for fixed-cost commands (see below)
 ---
 ```
 
@@ -23,7 +24,7 @@ argument-hint: <string>     # autocomplete hint shown in the CC UI
 
 1. **Commands compose agents. Agents never call commands.** Composition flows one way.
 2. **Each command has exactly one responsibility.** `/validate` validates. `/tdd` runs TDD. `/scaffold` scaffolds. No mixed responsibilities. `meta-command-composition-reviewer` enforces this at commit time.
-3. **Every long-running command invokes `meta-session-planner` as its first step.** The planner sizes the work against the current session's budget, decomposes if necessary, writes the plan to `session-state.md`. Skipping this is blocked by the composition reviewer.
+3. **Every long-running command invokes `meta-session-planner` as its first step.** The planner sizes the work against the current session's budget, decomposes if necessary, writes the plan to `session-state.md`. Skipping this is blocked by the composition reviewer. **Sanctioned exception — fast commands:** a fixed-cost command whose work cannot meaningfully exceed the session budget (no fan-out, no full-project walk, no agent-heavy loop) may opt out by declaring `fast-command: true` in frontmatter, with the reason stated in the body. The planner adds no value when the cost is bounded and small. `meta-command-composition-reviewer` honours this marker and does not flag such a command. Abuse it and you defeat the budget guard — reserve it for genuinely fast commands (e.g. `/setup`, `/validate`).
 4. **Commands emit phase markers.** The first step writes the current phase to `.current_phase` (read by `context_budget.py`). The last step clears it.
 
 ## Lifecycle phases and commands
