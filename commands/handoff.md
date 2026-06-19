@@ -4,6 +4,7 @@ model: haiku
 allowed-tools: Bash, Read, Write, Edit, Glob
 argument-hint: [optional note about why you're handing off]
 description: Write a fresh session-state file and update the MEMORY.md index, then signal readiness for /clear.
+phase: lifecycle
 ---
 
 # /handoff — prepare a clean session handoff
