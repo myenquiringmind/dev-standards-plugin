@@ -13,4 +13,5 @@
 
   Whichever is chosen, the reviewer's rule and the command set must end up consistent so the `agent` gate's `command-composition-reviewer` step returns `pass` on standing state.
 - **Blocks:** none (advisory). The `py-arch-doc-reviewer` branch introduces zero command-composition regressions; this is a standing-state finding routed here so the clean agent change is not held hostage to an unrelated pre-existing conflict.
-- **Status:** OPEN
+- **Resolution:** Chose option 1 (rule carve-out, doc-only). `commands/CLAUDE.md` rule 3 now sanctions a `fast-command: true` frontmatter marker for fixed-cost commands; `meta-command-composition-reviewer` (rule 3 + procedure step 5) honours the marker and skips the planner check for such commands; `setup.md` and `validate.md` declare the marker with a documented fast-cost rationale in the body. The reviewer's rule and the command set are now consistent — the `agent` gate's `command-composition-reviewer` step returns `pass` on standing state without pre-feeding. Landed on branch `feat/phase-6-tr0006-fast-command-exemption`.
+- **Status:** RESOLVED (2026-06-19)

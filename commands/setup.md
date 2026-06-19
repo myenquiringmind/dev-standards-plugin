@@ -5,6 +5,7 @@ allowed-tools: Bash, Read, Write, Edit, Glob, Grep, Agent
 argument-hint: (no arguments)
 description: First-run project configuration. Classifies the project state, runs the interactive wizard, writes .language_profile.json and config/user-config.json.
 phase: discover
+fast-command: true
 ---
 
 # /setup — configure the framework for this project
