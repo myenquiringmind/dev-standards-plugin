@@ -108,23 +108,68 @@ HANDOFF_STEPS: str = (
 #
 # * Phase 1 shipped the narrowed initial sets.
 # * Phase 2 added ``agent-arch-doc-reviewer`` to ``AGENT_VALIDATION_STEPS``.
-# * Phase 6 will add the ``py-*`` stack agents (solid-dry, security,
-#   doc-checker, arch-doc, code-simplifier, tdd-process) to
-#   ``PY_VALIDATION_STEPS`` and the ``fe-*`` stack agents to
-#   ``FE_VALIDATION_STEPS``.
+# * Phase 6 added the seven *universally-applicable* ``py-*`` stack reviewers
+#   (solid-dry, security, doc-checker, arch-doc, code-simplifier, tdd-process,
+#   logging) to ``PY_VALIDATION_STEPS``. The two *conditional* Python
+#   reviewers — ``py-migration-reviewer`` and ``py-api-reviewer`` — are
+#   deliberately NOT in the tuple: they scope themselves to migration / API
+#   files and no-op on any other diff, so requiring them in every code stamp
+#   would force wasted reviews (and a misleading "migration reviewed" claim)
+#   on changes with no migrations or endpoints. ``/validate`` dispatches them
+#   on demand and adds them to the stamp only when relevant files are staged.
+#   The ``fe-*`` stack agents grow ``FE_VALIDATION_STEPS`` in the same way.
+#
+# A canonical step here is a *superset requirement*: every name must appear in
+# the stamp (``pre_commit_cli_gate._validate_stamp``). The stamp may carry more
+# (e.g. the conditional reviewers). Step names are the agent names verbatim —
+# unlike the Phase 1 ``objective-verifier`` short form, the language-scoped
+# ``py-`` prefix is part of the identity and kept 1:1 with the agent file.
+#
+# Pack-conditional enforcement: the ``py-*`` reviewers are profile-scoped,
+# ``pack: python`` agents — they only load when the python pack is active. So
+# ``pre_commit_cli_gate`` requires ``PY_PACK_VALIDATION_STEPS`` *only* when
+# ``is_pack_active("python")``; the always-required floor is
+# ``PY_CORE_VALIDATION_STEPS`` (the CLI checks + the core ``objective-verifier``).
+# This keeps the gate honest: it never demands a reviewer step that the active
+# configuration cannot produce. ``PY_VALIDATION_STEPS`` is the full set
+# (core + pack) that ``/validate`` and the profile iterate.
 #
 # The narrow-now-grow-later approach keeps stamps honest (they cover exactly
 # what exists) rather than carrying ``not-yet-implemented`` placeholder
 # state through the schema. See project-canonical-step-phase-gap memory.
+#
+# ``PY_VALIDATION_STEPS`` is mirrored by ``config/profiles/python.json``'s
+# ``validationSteps`` (the list ``/validate`` and ``run_cli_checks`` iterate);
+# ``test__hook_shared`` asserts they stay in sync.
 
-#: Python code validation gate — Phase 1 narrowed set.
-PY_VALIDATION_STEPS: tuple[str, ...] = (
+#: Code-gate steps required on *every* Python commit, pack-independent —
+#: the CLI checks plus the core (``scope: core``) objective verifier.
+PY_CORE_VALIDATION_STEPS: tuple[str, ...] = (
     "ruff-check",
     "ruff-format",
     "mypy-strict",
     "pytest",
     "objective-verifier",
 )
+
+#: The seven universally-applicable ``py-*`` reviewers — required by the code
+#: gate only when the python pack is active (they are profile-scoped agents).
+#: The two *conditional* reviewers (``py-migration-reviewer``,
+#: ``py-api-reviewer``) are deliberately excluded even here: they scope to
+#: migration / API files and no-op on any other diff, so ``/validate``
+#: dispatches them on demand and stamps them only when relevant files stage.
+PY_PACK_VALIDATION_STEPS: tuple[str, ...] = (
+    "py-solid-dry-reviewer",
+    "py-security-reviewer",
+    "py-doc-checker",
+    "py-arch-doc-reviewer",
+    "py-code-simplifier",
+    "py-tdd-process-reviewer",
+    "py-logging-reviewer",
+)
+
+#: Full Python code validation gate — what ``/validate`` and the profile run.
+PY_VALIDATION_STEPS: tuple[str, ...] = PY_CORE_VALIDATION_STEPS + PY_PACK_VALIDATION_STEPS
 
 #: Frontend code validation gate — Phase 1 narrowed set (CLI-only).
 FE_VALIDATION_STEPS: tuple[str, ...] = (

@@ -13,6 +13,7 @@ import pytest
 from hooks import pre_commit_cli_gate
 from hooks._hook_shared import (
     AGENT_VALIDATION_STEPS,
+    PY_CORE_VALIDATION_STEPS,
     PY_VALIDATION_STEPS,
     STAMP_TTL,
 )
@@ -327,6 +328,75 @@ class TestCanonicalSteps:
         err = capsys.readouterr().err
         assert rc == 2
         assert "canonical steps" in err
+
+
+def _activate_pack(project_dir: Path, pack: str) -> None:
+    config = project_dir / "config"
+    config.mkdir(parents=True, exist_ok=True)
+    (config / "user-config.json").write_text(json.dumps({"activePacks": [pack]}), encoding="utf-8")
+
+
+class TestPackAwareCodeGate:
+    """The code gate requires the py-* reviewer steps only when the python pack
+    is active — they are profile-scoped agents the config may not load."""
+
+    def test_required_steps_core_only_when_pack_inactive(self, tmp_dir: Path) -> None:
+        # No user-config.json → python pack inactive.
+        required = pre_commit_cli_gate._required_steps("code", tmp_dir)
+        assert required == frozenset(PY_CORE_VALIDATION_STEPS)
+
+    def test_required_steps_expands_when_pack_active(self, tmp_dir: Path) -> None:
+        _activate_pack(tmp_dir, "python")
+        required = pre_commit_cli_gate._required_steps("code", tmp_dir)
+        assert required == frozenset(PY_VALIDATION_STEPS)
+
+    def test_core_only_stamp_passes_when_pack_inactive(
+        self, tmp_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _write_schema(tmp_dir)
+        _write_stamp(tmp_dir, gate="code", branch="feat/x", steps=list(PY_CORE_VALIDATION_STEPS))
+        _patch(
+            monkeypatch,
+            command="git commit -m 'work'",
+            project_dir=tmp_dir,
+            branch="feat/x",
+            staged=["hooks/foo.py"],
+        )
+        assert pre_commit_cli_gate.main() == 0
+
+    def test_core_only_stamp_blocks_when_pack_active(
+        self, tmp_dir: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        _write_schema(tmp_dir)
+        _activate_pack(tmp_dir, "python")
+        _write_stamp(tmp_dir, gate="code", branch="feat/x", steps=list(PY_CORE_VALIDATION_STEPS))
+        _patch(
+            monkeypatch,
+            command="git commit -m 'work'",
+            project_dir=tmp_dir,
+            branch="feat/x",
+            staged=["hooks/foo.py"],
+        )
+        rc = pre_commit_cli_gate.main()
+        err = capsys.readouterr().err
+        assert rc == 2
+        assert "canonical steps" in err
+        assert "py-solid-dry-reviewer" in err
+
+    def test_full_stamp_passes_when_pack_active(
+        self, tmp_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _write_schema(tmp_dir)
+        _activate_pack(tmp_dir, "python")
+        _write_stamp(tmp_dir, gate="code", branch="feat/x", steps=list(PY_VALIDATION_STEPS))
+        _patch(
+            monkeypatch,
+            command="git commit -m 'work'",
+            project_dir=tmp_dir,
+            branch="feat/x",
+            staged=["hooks/foo.py"],
+        )
+        assert pre_commit_cli_gate.main() == 0
 
 
 class TestCorruptStamp:

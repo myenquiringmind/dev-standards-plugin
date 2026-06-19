@@ -36,16 +36,22 @@ The canonical step tuples for each gate are the single source of truth in `hooks
      - `tsc-strict` → `npx tsc --noEmit --strict`
      - `vitest` → `npx vitest run`
    - **agent** gate has no CLI steps; the agent-specific step is invoked in step 3.
-   - **db** / **api** gates have no Phase 1 CLI steps (empty canonical tuple in `pre_commit_cli_gate._CANONICAL_STEPS`); write the stamp with the detected steps from the diff.
+   - **db** / **api** gates have no Phase 1 CLI steps (empty core set in `pre_commit_cli_gate._CORE_STEPS`); write the stamp with the detected steps from the diff.
 
    If any CLI step fails, surface the tool's output and **stop** for that gate — do not invoke the reviewer agents. A CLI-failed gate produces no stamp.
 
-3. **Invoke the blocking reviewer agents.** Via the `Agent` tool. The agents themselves read the current branch, staged diff, and `<memory>/session-state.md`:
-   - Every gate: `validation-objective-verifier` → must return `status: pass`.
-   - Every gate: `validation-completion-verifier` → must return `status: pass`.
+3. **Invoke the blocking reviewer agents.** Via the `Agent` tool. The agents themselves read the current branch, staged diff, and `<memory>/session-state.md`. Each reviewer's name is also the canonical *step name* you pass to `stamp_validation` in step 4 — invoke agent `X`, stamp step `X`.
+   - Every gate: `validation-objective-verifier` (step `objective-verifier`) → must return `status: pass`.
+   - Every gate: `validation-completion-verifier` → must return `status: pass`. (Run on every gate; not yet a canonical tuple step — do not block stamping on its absence from the tuple.)
+   - **code** gate — the seven universally-applicable Python reviewers in `PY_PACK_VALIDATION_STEPS` (read them from `_hook_shared.py`; do not hard-code): `py-solid-dry-reviewer`, `py-security-reviewer`, `py-doc-checker`, `py-arch-doc-reviewer`, `py-code-simplifier`, `py-tdd-process-reviewer`, `py-logging-reviewer`. **Run these only when the `python` pack is active** — they are profile-scoped agents, and the gate likewise requires their steps only when the pack is active (`PY_CORE_VALIDATION_STEPS` — the CLI checks + `objective-verifier` — is the pack-independent floor). All return a verdict; `py-tdd-process-reviewer` is advisory (a `fail` is recorded, never blocks).
+   - **code** gate — **conditional** Python reviewers, dispatched only when the staged diff warrants and added to the stamp's `--step` list when run (they are deliberately *not* in `PY_VALIDATION_STEPS`):
+     - `py-migration-reviewer` — when the diff stages Alembic revisions (`*/versions/*.py` with `revision`/`down_revision`) or Django migrations (`*/migrations/*.py`).
+     - `py-api-reviewer` — when the diff stages FastAPI/Django endpoint code (route decorators `@app.`/`@router.`, `APIRouter`, `from fastapi`, `rest_framework`/viewsets, `urls.py`).
+
+     When unsure, invoke them — both scope themselves to their own files and return `status: pass` with no findings on an irrelevant diff, so over-invoking only costs a call.
    - **agent** gate additionally: `meta-command-composition-reviewer` (only if `commands/` or `agents/` changed).
 
-   If any agent returns `status: fail`, surface the error codes and the agent's `detail` / `path` fields. Do not write the stamp for that gate.
+   If any blocking agent returns `status: fail`, surface the error codes and the agent's `detail` / `path` fields. Do not write the stamp for that gate. (`py-tdd-process-reviewer` is advisory: record its verdict, but a `fail` does not withhold the stamp.)
 
 4. **Write the stamp.** Invoke `uv run python -m hooks.stamp_validation --gate <gate> --step <step1> --step <step2> ...`. Pass every canonical step name that ran green. The CLI handles schema validation and branch detection; if it exits non-zero, surface the error and **do not** declare the gate passed.
 
@@ -78,6 +84,8 @@ Before reporting success, verify for each gate you claimed to validate:
 
 If any box is unchecked, the gate has not passed. Report it as failed, do not declare completion.
 
-## Phase 1 note
+## Canonical-tuple note
 
-Phase 1 canonical tuples are the *narrowed* set — see `hooks/_hook_shared.py` docstring on `PY_VALIDATION_STEPS`. The Phase-6 stack agents (`py-solid-dry-reviewer` etc.) are not yet canonical; do not invoke them. They will be added to the tuples and to this command's step 3 as they land in later phases. `/validate` must keep the invocation list in sync with the tuples — a hard-coded list that drifts from `_hook_shared.py` is a bug.
+The canonical tuples in `hooks/_hook_shared.py` are the **single source of truth** for which steps a stamp must contain. Read them at runtime — a hard-coded list in this command that drifts from `_hook_shared.py` is a bug, and `pre_commit_cli_gate` will reject a stamp missing any canonical step.
+
+As of Phase 6 the **code** gate's `PY_VALIDATION_STEPS` carries the seven universally-applicable `py-*` reviewers (listed in step 3) on top of the Phase 1 CLI + `objective-verifier` steps. The two conditional reviewers (`py-migration-reviewer`, `py-api-reviewer`) are dispatched on demand and stamped only when relevant — they are intentionally absent from the tuple (see the `_hook_shared.py` docstring for why). The `fe-*` frontend stack will grow `FE_VALIDATION_STEPS` the same way as it lands.
