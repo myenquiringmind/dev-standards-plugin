@@ -60,6 +60,7 @@ A future hook (Phase D or later) will validate: no PR merges with unresolved blo
 - [TR-0003](TR-0003-memory-tier-mismatch-read-reason-agents.md) — **OPEN** — `memory: project` on 7+ merged read/reason-tier agents conflicts with `meta-agent-arch-doc-reviewer` rule; needs semantic clarification (read-inject vs write-access) before mass-fix
 - [TR-0004](TR-0004-context-budget-hard-cut-not-enforced.md) — **OPEN** — context-budget hard cut is principle-only; three concrete bugs (cache absent, threshold > compaction trigger, hook ignores `compute_hard_cut()`) leave `context_budget.py` silently fail-open. Doc-fix shipped; threshold/cache/test work deferred to follow-up PRs
 - [TR-0005](TR-0005-canonicalize-agentverdict-shape.md) — **OPEN** — three AgentVerdict shapes coexist (shipped validation agents `{agent,status,errors}`; Phase 5 spec `{ok,reason,confidence,evidence}`; cluster agents `{agent,status,confidence,findings}`). Pick one canonical shape + commit `agent-verdict.schema.json` before the Phase 5 stream-5 live check
+- [TR-0006](TR-0006-rule3-fast-command-planner-conflict.md) — **OPEN** — rule 3 mechanically flags fast commands (`setup.md`, `validate.md`) for a `meta-session-planner` step they deliberately skip; pre-existing rule-vs-design conflict surfaced by `command-composition-reviewer`. Resolve via rule carve-out or planner-in-commands so the standing-state check returns `pass`
 
 ### Recently closed
 

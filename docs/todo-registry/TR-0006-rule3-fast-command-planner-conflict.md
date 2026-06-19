@@ -1,0 +1,16 @@
+# TR-0006: rule 3 mechanically flags fast commands (setup, validate) for a planner step they deliberately skip
+
+- **Discovered:** 2026-06-19, commit `7bbe6c0` (surfaced while adding `py-arch-doc-reviewer` (#81); the `agent` gate's `command-composition-reviewer` step audited standing `commands/` state and returned `fail`)
+- **Tier:** 3 (pre-existing; architectural — two valid resolutions; scope-changing relative to the agent-addition objective, so deferred rather than folded in. User-directed routing.)
+- **Description:** `commands/CLAUDE.md` rule 3 requires every *long-running* command to invoke `meta-session-planner` as its first step. `meta-command-composition-reviewer` applies "long-running" mechanically as *non-exempt phase + more than three numbered steps*. Two commands trip this but deliberately skip the planner:
+  - `commands/validate.md` — phase `validate`, 5 steps, no planner invocation.
+  - `commands/setup.md` — phase `discover`, 4 steps; references the planner only in a "Do not run long-running tasks first … Phase 1 setup is fast enough that the planner adds no value" caveat (line 71), not as a step-1 invocation.
+
+  Both files carry a documented author rationale that they are fixed-cost/fast, so the planner adds no value. This is a genuine conflict between rule 3 as written and deliberate command design, not a defect in either command. The conflict is pre-existing — it predates the `py-*` Phase 6 stack and passed 5 prior `py-*` agent merges under the same `agent`-gate procedure (the reviewer's earlier brief was scoped to Phase 1 and did not audit `validate.md`/`setup.md`, which have since landed).
+- **Remediation plan:** Pick one and apply as a focused objective:
+  1. **Rule carve-out (doc-only, lighter):** add a sanctioned fast-command exemption to rule 3 in `commands/CLAUDE.md`, and teach `meta-command-composition-reviewer` to honour an explicit fast-command marker (e.g. a frontmatter flag or an allowlist) so the rule and the commands agree. Preferred if "fixed-cost commands need no planner" is accepted policy.
+  2. **Planner-in-commands (behavioural, heavier):** add a `meta-session-planner` step-1 invocation to `setup.md` and `validate.md`. Contradicts the existing documented rationale; only correct if the policy is "all >3-step commands must size against budget regardless of cost."
+
+  Whichever is chosen, the reviewer's rule and the command set must end up consistent so the `agent` gate's `command-composition-reviewer` step returns `pass` on standing state.
+- **Blocks:** none (advisory). The `py-arch-doc-reviewer` branch introduces zero command-composition regressions; this is a standing-state finding routed here so the clean agent change is not held hostage to an unrelated pre-existing conflict.
+- **Status:** OPEN
