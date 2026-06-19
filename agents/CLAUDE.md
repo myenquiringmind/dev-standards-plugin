@@ -52,7 +52,7 @@ Pattern: `<scope>-<domain>-<role>.md`
 
 - Scope prefix: `py`, `fe`, `db`, `api`, `pattern`, `antipattern`, `design`, `discover`, `research`, `doc`, `meta`, `validation`, `refactor`, `operate`, `maintain`, `deploy`, `security`, `testing`, `interop`, `bg`, `codebase`, `closed-loop`
 - Domain: what it reviews or produces (solid-dry, schema, migration, strategy, ...)
-- Role: `-reviewer` (blocking), `-checker` (auto-fixer), `-advisor` (advisory), `-scaffolder` (generator), `-designer` (design phase), `-scanner` (read tier), `-profiler` (read tier), `-analyst` (reason tier), `-planner` (reason tier)
+- Role: `-reviewer` (blocking), `-checker` (auto-fixer), `-simplifier` (complexity reduction, write tier), `-advisor` (advisory), `-scaffolder` (generator), `-designer` (design phase), `-scanner` (read tier), `-profiler` (read tier), `-analyst` (reason tier), `-planner` (reason tier)
 
 The `schemas/agent-frontmatter.schema.json` name regex enforces this.
 
