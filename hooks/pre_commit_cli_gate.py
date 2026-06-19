@@ -32,10 +32,12 @@ from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 from hooks._hook_shared import (
     AGENT_VALIDATION_STEPS,
     FE_VALIDATION_STEPS,
-    PY_VALIDATION_STEPS,
+    PY_CORE_VALIDATION_STEPS,
+    PY_PACK_VALIDATION_STEPS,
     STAMP_TTL,
     get_current_branch,
     get_project_dir,
+    is_pack_active,
     read_hook_input,
 )
 
@@ -50,13 +52,38 @@ _STAMP_FILENAMES: dict[str, str] = {
     "api": ".api_validation_stamp",
 }
 
-_CANONICAL_STEPS: dict[str, frozenset[str]] = {
-    "code": frozenset(PY_VALIDATION_STEPS),
+#: Steps a gate requires regardless of which packs are active — the floor.
+_CORE_STEPS: dict[str, frozenset[str]] = {
+    "code": frozenset(PY_CORE_VALIDATION_STEPS),
     "frontend": frozenset(FE_VALIDATION_STEPS),
     "agent": frozenset(AGENT_VALIDATION_STEPS),
     "db": frozenset(),
     "api": frozenset(),
 }
+
+#: Steps a gate requires *only when* the named pack is active. Profile-scoped
+#: reviewer agents (``pack: python`` etc.) are not loadable when their pack is
+#: off, so the gate must not demand stamp steps the configuration cannot
+#: produce. ``frontend`` joins this map when its ``fe-*`` reviewers land.
+_PACK_STEPS: dict[str, tuple[str, frozenset[str]]] = {
+    "code": ("python", frozenset(PY_PACK_VALIDATION_STEPS)),
+}
+
+
+def _required_steps(gate: str, project_dir: Path) -> frozenset[str]:
+    """Canonical steps for *gate*, expanded by any active pack.
+
+    The core floor always applies; pack-conditional reviewer steps are added
+    only when their pack is active in this project's configuration.
+    """
+    required = _CORE_STEPS[gate]
+    pack = _PACK_STEPS.get(gate)
+    if pack is not None:
+        pack_name, pack_steps = pack
+        if is_pack_active(pack_name, project_dir):
+            required = required | pack_steps
+    return required
+
 
 _FRONTEND_EXTS: frozenset[str] = frozenset(
     {".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".vue", ".svelte", ".css", ".scss"}
@@ -180,7 +207,7 @@ def _validate_stamp(
             f"but current branch is '{branch}' — re-run /validate"
         )
 
-    canonical = _CANONICAL_STEPS[gate]
+    canonical = _required_steps(gate, project_dir)
     if canonical:
         stamp_steps = {str(s) for s in stamp.get("steps", [])}
         missing = canonical - stamp_steps

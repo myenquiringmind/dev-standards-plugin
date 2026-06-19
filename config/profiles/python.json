@@ -40,7 +40,8 @@
     "py-doc-checker",
     "py-arch-doc-reviewer",
     "py-code-simplifier",
-    "py-tdd-process-reviewer"
+    "py-tdd-process-reviewer",
+    "py-logging-reviewer"
   ],
   "conventions": {
     "fileNaming": "snake_case",

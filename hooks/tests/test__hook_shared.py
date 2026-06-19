@@ -16,6 +16,8 @@ from hooks._hook_shared import (
     FE_VALIDATION_STEPS,
     HARD_CUT_FRACTION,
     PROTECTED_BRANCHES,
+    PY_CORE_VALIDATION_STEPS,
+    PY_PACK_VALIDATION_STEPS,
     PY_VALIDATION_STEPS,
     STAMP_TTL,
     WARN_CONTEXT_PCT,
@@ -280,3 +282,71 @@ class TestConstants:
     def test_protected_branches_include_master(self) -> None:
         assert "master" in PROTECTED_BRANCHES
         assert "main" in PROTECTED_BRANCHES
+
+
+# ---------------------------------------------------------------------------
+# Python validation-step wiring (Phase 6)
+# ---------------------------------------------------------------------------
+
+#: The seven universally-applicable py-* reviewers required on every code stamp.
+_UNIVERSAL_PY_REVIEWERS: frozenset[str] = frozenset(
+    {
+        "py-solid-dry-reviewer",
+        "py-security-reviewer",
+        "py-doc-checker",
+        "py-arch-doc-reviewer",
+        "py-code-simplifier",
+        "py-tdd-process-reviewer",
+        "py-logging-reviewer",
+    }
+)
+
+#: The conditional reviewers that must NOT be in the required tuple — they
+#: scope to migration / API files and are dispatched on demand by /validate.
+_CONDITIONAL_PY_REVIEWERS: frozenset[str] = frozenset({"py-migration-reviewer", "py-api-reviewer"})
+
+
+def _repo_root() -> Path:
+    # hooks/tests/test__hook_shared.py -> repo root is parents[2].
+    return Path(__file__).resolve().parents[2]
+
+
+class TestPyValidationStepWiring:
+    def test_universal_reviewers_are_the_pack_steps(self) -> None:
+        assert set(PY_PACK_VALIDATION_STEPS) == _UNIVERSAL_PY_REVIEWERS
+
+    def test_universal_reviewers_are_canonical(self) -> None:
+        assert _UNIVERSAL_PY_REVIEWERS.issubset(PY_VALIDATION_STEPS)
+
+    def test_conditional_reviewers_are_not_canonical(self) -> None:
+        # Requiring these in every stamp would force wasted reviews on diffs
+        # with no migrations / endpoints. They are stamped on demand instead.
+        assert _CONDITIONAL_PY_REVIEWERS.isdisjoint(PY_VALIDATION_STEPS)
+
+    def test_full_tuple_is_core_plus_pack(self) -> None:
+        assert PY_VALIDATION_STEPS == PY_CORE_VALIDATION_STEPS + PY_PACK_VALIDATION_STEPS
+
+    def test_core_and_pack_are_disjoint(self) -> None:
+        assert set(PY_CORE_VALIDATION_STEPS).isdisjoint(PY_PACK_VALIDATION_STEPS)
+
+    def test_cli_and_objective_steps_are_the_core_floor(self) -> None:
+        # The pack-independent floor the gate always requires.
+        assert set(PY_CORE_VALIDATION_STEPS) == {
+            "ruff-check",
+            "ruff-format",
+            "mypy-strict",
+            "pytest",
+            "objective-verifier",
+        }
+
+    def test_tuple_matches_python_profile(self) -> None:
+        """The profile's validationSteps must mirror the canonical tuple.
+
+        run_cli_checks and /validate iterate the profile list; the gate's
+        superset check uses the tuple. Drift between them is the bug that
+        once left py-logging-reviewer out of the profile.
+        """
+        profile = json.loads(
+            (_repo_root() / "config" / "profiles" / "python.json").read_text(encoding="utf-8")
+        )
+        assert set(profile["validationSteps"]) == set(PY_VALIDATION_STEPS)
